@@ -2,16 +2,15 @@
 #include <libsoup/soup.h>
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
-
-const int port = 8080;
+#include "file-endpoint.hpp"
 
 static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
 {
-    GMainLoop *main_loop = reinterpret_cast<GMainLoop *>(user_data);
+    // GMainLoop *main_loop = reinterpret_cast<GMainLoop *>(user_data);
     switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_EOS:
     case GST_MESSAGE_ERROR:
-        g_main_loop_quit(main_loop);
+        // g_main_loop_quit(main_loop);
         break;
     default:
         break; 
@@ -34,12 +33,13 @@ static GstFlowReturn appsink_new_sample(GstAppSink *appsink, gpointer user_data)
 
 int main(int argc, char *argv[])
 {
+    const int port = 8080;
     SoupServer *http_server = soup_server_new(SOUP_SERVER_SERVER_HEADER, "HLS Demo ", NULL);
     gst_init(&argc, &argv);
     GstElement *pipeline = gst_pipeline_new(NULL);
     GstElement *videotestsrc = gst_element_factory_make("videotestsrc", NULL);
     g_object_set(videotestsrc, "num-buffers", 100, NULL);
-    GstElement *timeoverlay = gst_element_factory_make("timeoverlay", NULL);
+    GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
     GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
     GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
     g_object_set(h264enc, "realtime", TRUE, NULL);
@@ -51,6 +51,11 @@ int main(int argc, char *argv[])
     gst_bin_add_many(GST_BIN(pipeline), videotestsrc, timeoverlay, videoconvert, h264enc, mp4mux, sink, NULL);
     gst_element_link_many(videotestsrc, timeoverlay, videoconvert,  h264enc, mp4mux, sink, NULL);
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    soup_server_add_handler(http_server, NULL, [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
+    {
+        set_error_message(msg, SOUP_STATUS_NOT_FOUND);
+    }, NULL, NULL);
+    soup_server_add_handler(http_server, "/ui", file_callback, NULL, NULL);
     if (soup_server_listen_all(http_server, port, static_cast<SoupServerListenOptions>(0), 0))
         g_print("server listening on port %d\n", port);
     else
