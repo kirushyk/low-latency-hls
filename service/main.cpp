@@ -1,7 +1,9 @@
 #include <cstdint>
-#include <vector>
-#include <map>
+#include <sstream>
+#include <memory>
+#include <list>
 #include <iostream>
+#include <glib.h>
 #include <libsoup/soup.h>
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
@@ -24,63 +26,109 @@ static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
 struct HLSSegment
 {
     int number;
+    GDateTime *dateTime;
     GstBuffer *buffer;
     GstMapInfo mapInfo;
     GstSample *sample;
+    static GTimeZone *timeZone;
+
+    HLSSegment();
+    ~HLSSegment();
 };
+
+GTimeZone * HLSSegment::timeZone = NULL;
+
+HLSSegment::HLSSegment()
+{
+    if (timeZone == NULL)
+    {
+        timeZone = g_time_zone_new_utc();
+    }
+    dateTime = g_date_time_new_now(timeZone);
+}
+
+HLSSegment::~HLSSegment()
+{
+    if (buffer)
+        gst_buffer_unmap(buffer, &mapInfo);
+    if (sample)
+        gst_sample_unref(sample);
+    if (dateTime)
+    {
+        g_date_time_unref(dateTime);
+    }
+}
 
 #define SEGMENTS_COUNT 5
 
 struct HLSOutput
 {
     int lastIndex, lastSegmentNumber;
-    HLSSegment segments[SEGMENTS_COUNT];
+    std::list<std::shared_ptr<HLSSegment>> segments;
 public:
     HLSOutput();
     void pushSegment(GstSample *sample);
-    const HLSSegment * getSegment(int number);
+    std::shared_ptr<HLSSegment> getSegment(int number) const;
+    std::string getPlaylist() const;
 };
 
 HLSOutput::HLSOutput()
 {
     lastIndex = 0;
     lastSegmentNumber = 0;
-    for (int i = 0; i < SEGMENTS_COUNT; i++)
-    {
-        segments[i].buffer = NULL;
-        segments[i].sample = NULL;
-    }
 }
 
 void HLSOutput::pushSegment(GstSample *sample)
 {
-    if (segments[lastIndex].buffer)
-        gst_buffer_unmap(segments[lastIndex].buffer, &segments[lastIndex].mapInfo);
-    if (segments[lastIndex].sample)
-        gst_sample_unref(segments[lastIndex].sample);
-    segments[lastIndex].buffer = gst_sample_get_buffer(sample);
-    gst_buffer_map(segments[lastIndex].buffer, &segments[lastIndex].mapInfo, (GstMapFlags)(GST_MAP_READ));
-    segments[lastIndex].number = lastSegmentNumber;
+    std::shared_ptr<HLSSegment> segment = std::make_shared<HLSSegment>();
+
+    segment->sample = sample;
+    segment->buffer = gst_sample_get_buffer(sample);
+    gst_buffer_map(segment->buffer, &segment->mapInfo, (GstMapFlags)(GST_MAP_READ));
+    segment->number = lastSegmentNumber;
+
+    segments.push_back(segment);
     
     lastSegmentNumber++;
-    lastIndex++;
-    if (lastIndex >= SEGMENTS_COUNT)
+
+    if (segments.size() > SEGMENTS_COUNT)
     {
-        lastIndex = 0;
+        segments.pop_front();
     }
+
     std::cerr << "fmp4.";
 }
 
-const HLSSegment * HLSOutput::getSegment(int number)
+std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
 {
-    for (int i = 0; i < SEGMENTS_COUNT; i++)
+    for (const auto& segment: segments)
     {
-        if (segments[i].buffer && segments[i].sample && segments[i].number == number)
+        if (segment->number == number)
         {
-            return segments + i;
+            return segment;
         }
     }
     return NULL;
+}
+
+std::string HLSOutput::getPlaylist() const
+{
+    std::stringstream ss;
+    ss << "#EXTM3U" << std::endl;
+    ss << "#EXT-X-TARGETDURATION:4" << std::endl;
+    ss << "#EXT-X-VERSION:6" << std::endl;
+    ss << "#EXT-X-MEDIA-SEQUENCE:" << lastSegmentNumber << std::endl;
+    // gchar *g_date_time_format_iso8601 (GDateTime *datetime);
+    // ss << "#EXT-X-PROGRAM-DATE-TIME:2019-02-14T02:13:36.106Z" << std::endl;
+    for (const auto& segment: segments)
+    {
+        if (segment->buffer)
+        {
+            ss << "#EXTINF:4," << std::endl;
+            ss << "segments/" << segment->number << ".mp4" << std::endl;
+        }
+    }
+    return ss.str();
 }
 
 static GstFlowReturn mp4sink_new_sample(GstAppSink *appsink, gpointer user_data)
@@ -93,19 +141,19 @@ static GstFlowReturn mp4sink_new_sample(GstAppSink *appsink, gpointer user_data)
     return GST_FLOW_OK;
 }
 
-static GstFlowReturn tssink_new_sample(GstAppSink *appsink, gpointer user_data)
-{
-    if (GstSample *sample = gst_app_sink_pull_sample(appsink)) 
-    {
-        GstBuffer *buffer = gst_sample_get_buffer(sample);
-        GstMapInfo mapInfo;
-        gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
-        gst_buffer_unmap(buffer, &mapInfo);
-        gst_sample_unref(sample);
-    }
-    std::cerr << "ts.";
-    return GST_FLOW_OK;
-}
+// static GstFlowReturn tssink_new_sample(GstAppSink *appsink, gpointer user_data)
+// {
+//     if (GstSample *sample = gst_app_sink_pull_sample(appsink)) 
+//     {
+//         GstBuffer *buffer = gst_sample_get_buffer(sample);
+//         GstMapInfo mapInfo;
+//         gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
+//         gst_buffer_unmap(buffer, &mapInfo);
+//         gst_sample_unref(sample);
+//     }
+//     std::cerr << "ts.";
+//     return GST_FLOW_OK;
+// }
 
 int main(int argc, char *argv[])
 {
@@ -123,7 +171,7 @@ int main(int argc, char *argv[])
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
     GstElement *mp4queue = gst_element_factory_make("queue", NULL);
     GstElement *mp4mux = gst_element_factory_make("mp4mux", NULL);
-    g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", 200, "streamable", TRUE, NULL);
+    g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", 4000, "streamable", TRUE, NULL);
     GstElement *mp4sink = gst_element_factory_make("appsink", NULL);
     g_object_set(mp4sink, "emit-signals", TRUE, "sync", FALSE, NULL);
     g_signal_connect(mp4sink, "new-sample", G_CALLBACK(mp4sink_new_sample), &hlsOutput);
@@ -156,6 +204,13 @@ int main(int argc, char *argv[])
     {
         set_error_message(msg, SOUP_STATUS_NOT_FOUND);
     }, NULL, NULL);
+    soup_server_add_handler(http_server, "/api/plain.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
+    {
+        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::string playlist = hlsOutput->getPlaylist();
+        soup_message_set_response(msg, "vnd.apple.mpegURL", SOUP_MEMORY_COPY, playlist.c_str(), playlist.size());
+        soup_message_set_status(msg, SOUP_STATUS_OK);
+    }, &hlsOutput, NULL);
     soup_server_add_handler(http_server, "/ui", file_callback, NULL, NULL);
     soup_server_add_handler(http_server, "/", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
     {
