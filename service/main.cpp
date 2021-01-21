@@ -38,6 +38,7 @@ struct HLSOutput
 public:
     HLSOutput();
     void pushSegment(GstSample *sample);
+    const HLSSegment * getSegment(int number);
 };
 
 HLSOutput::HLSOutput()
@@ -66,6 +67,18 @@ void HLSOutput::pushSegment(GstSample *sample)
         lastIndex = 0;
     }
     std::cerr << "fmp4.";
+}
+
+const HLSSegment * HLSOutput::getSegment(int number)
+{
+    for (int i = 0; i < SEGMENTS_COUNT; i++)
+    {
+        if (segments[i].buffer && segments[i].sample && segments[i].number == number)
+        {
+            return segments + i;
+        }
+    }
+    return NULL;
 }
 
 static GstFlowReturn mp4sink_new_sample(GstAppSink *appsink, gpointer user_data)
