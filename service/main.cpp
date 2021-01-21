@@ -33,7 +33,7 @@ struct HLSSegment
 
 struct HLSOutput
 {
-    int lastIndex, lastSegment;
+    int lastIndex, lastSegmentNumber;
     HLSSegment segments[SEGMENTS_COUNT];
 public:
     HLSOutput();
@@ -44,7 +44,7 @@ public:
 HLSOutput::HLSOutput()
 {
     lastIndex = 0;
-    lastSegment = 0;
+    lastSegmentNumber = 0;
     for (int i = 0; i < SEGMENTS_COUNT; i++)
     {
         segments[i].buffer = NULL;
@@ -60,7 +60,9 @@ void HLSOutput::pushSegment(GstSample *sample)
         gst_sample_unref(segments[lastIndex].sample);
     segments[lastIndex].buffer = gst_sample_get_buffer(sample);
     gst_buffer_map(segments[lastIndex].buffer, &segments[lastIndex].mapInfo, (GstMapFlags)(GST_MAP_READ));
+    segments[lastIndex].number = lastSegmentNumber;
     
+    lastSegmentNumber++;
     lastIndex++;
     if (lastIndex >= SEGMENTS_COUNT)
     {
@@ -152,9 +154,16 @@ int main(int argc, char *argv[])
     }, NULL, NULL);
     soup_server_add_handler(http_server, "/api/hack.ts", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
     {
-        
+        set_error_message(msg, SOUP_STATUS_NOT_FOUND);
     }, NULL, NULL);
     soup_server_add_handler(http_server, "/ui", file_callback, NULL, NULL);
+    soup_server_add_handler(http_server, "/", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
+    {
+        const char *phrase = soup_status_get_phrase(SOUP_STATUS_MOVED_PERMANENTLY);
+        soup_message_headers_append(msg->response_headers, "Location", "/ui");
+        soup_message_set_response(msg, "text/plain", SOUP_MEMORY_STATIC, phrase, strlen(phrase));
+        soup_message_set_status_full(msg, SOUP_STATUS_MOVED_PERMANENTLY, phrase);
+    }, NULL, NULL);
     if (soup_server_listen_all(http_server, port, static_cast<SoupServerListenOptions>(0), 0))
         g_print("server listening on port %d\n", port);
     else
