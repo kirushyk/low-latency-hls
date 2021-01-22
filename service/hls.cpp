@@ -32,26 +32,36 @@ HLSOutput::HLSOutput()
 
 void HLSOutput::pushSample(GstSample *sample)
 {
-    std::shared_ptr<HLSSegment> segment = std::make_shared<HLSSegment>();
+    std::shared_ptr<HLSSegment> segment;
+
+    GstBuffer *buffer = gst_sample_get_buffer(sample);
+    
+    if (segments.size())
+    {
+        std::shared_ptr<HLSSegment> recentSegment = segments.back();
+        if ((recentSegment->duration + buffer->duration) < (SEGMENT_DURATION * GST_SECOND))
+        {
+            segment = recentSegment;
+        }
+    }
+
+    if (!segment)
+    {
+        segment = std::make_shared<HLSSegment>();
+        segment->number = lastSegmentNumber++;
+        segments.push_back(segment);
+        if (segments.size() > SEGMENTS_COUNT)
+        {
+            segments.pop_front();
+        }
+    }
 
     GstMapInfo mapInfo;
-    GstBuffer *buffer = gst_sample_get_buffer(sample);
     segment->duration += buffer->duration;
     gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
     segment->data.write(reinterpret_cast<const char *>(mapInfo.data), mapInfo.size);
     gst_buffer_unmap(buffer, &mapInfo);
     gst_sample_unref(sample);
-
-    segment->number = lastSegmentNumber;
-
-    segments.push_back(segment);
-    
-    lastSegmentNumber++;
-
-    if (segments.size() > SEGMENTS_COUNT)
-    {
-        segments.pop_front();
-    }
 }
 
 std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
@@ -70,7 +80,7 @@ std::string HLSOutput::getPlaylist() const
 {
     std::stringstream ss;
     ss << "#EXTM3U" << std::endl;
-    ss << "#EXT-X-TARGETDURATION:4" << std::endl;
+    ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
     ss << "#EXT-X-VERSION:6" << std::endl;
     ss << "#EXT-X-MEDIA-SEQUENCE:" << lastSegmentNumber << std::endl;
     // gchar *g_date_time_format_iso8601 (GDateTime *datetime);
