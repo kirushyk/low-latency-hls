@@ -1,5 +1,5 @@
 #pragma once
-#define SEGMENTS_COUNT 5
+#define SEGMENTS_COUNT 7
 #define SEGMENT_DURATION 4
 #include <sstream>
 #include <list>
