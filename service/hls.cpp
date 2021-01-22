@@ -35,7 +35,7 @@ void HLSOutput::pushSample(GstSample *sample)
     std::shared_ptr<HLSSegment> segment;
 
     GstBuffer *buffer = gst_sample_get_buffer(sample);
-    
+
     if (segments.size())
     {
         std::shared_ptr<HLSSegment> recentSegment = segments.back();
@@ -57,7 +57,8 @@ void HLSOutput::pushSample(GstSample *sample)
     }
 
     GstMapInfo mapInfo;
-    segment->duration += buffer->duration;
+    if (buffer->duration != GST_CLOCK_TIME_NONE)
+        segment->duration += buffer->duration;
     gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
     segment->data.write(reinterpret_cast<const char *>(mapInfo.data), mapInfo.size);
     gst_buffer_unmap(buffer, &mapInfo);
