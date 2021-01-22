@@ -27,7 +27,7 @@ static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
     return TRUE;
 }
 
-static GstFlowReturn mp4sink_new_sample(GstAppSink *appsink, gpointer user_data)
+static GstFlowReturn tssink_new_sample(GstAppSink *appsink, gpointer user_data)
 {
     HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
     if (GstSample *sample = gst_app_sink_pull_sample(appsink))
@@ -49,25 +49,23 @@ int main(int argc, char *argv[])
     GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
     GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
     GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
-    g_object_set(h264enc, "realtime", TRUE, "max-keyframe-interval-duration", 200000000, NULL);
+    g_object_set(h264enc, "realtime", TRUE, "max-keyframe-interval-duration", GST_SECOND, NULL);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
-    GstElement *mp4queue = gst_element_factory_make("queue", NULL);
-    GstElement *mp4mux = gst_element_factory_make("mpegtsmux", NULL);
-    // g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", SEGMENT_DURATION * 1000, "presentation-time", TRUE, "streamable", TRUE, NULL);
-    // g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", SEGMENT_DURATION * 1000, "presentation-time", TRUE, "streamable", TRUE, NULL);
+    GstElement *tsqueue = gst_element_factory_make("queue", NULL);
+    GstElement *tsmux = gst_element_factory_make("mpegtsmux", NULL);
     GstElement *tsparse = gst_element_factory_make("tsparse", NULL);
     g_object_set(tsparse, "set-timestamps", TRUE, "split-on-rai", TRUE, NULL);
     
-    GstElement *mp4sink = gst_element_factory_make("appsink", NULL);
-    g_object_set(mp4sink, "emit-signals", TRUE, "sync", FALSE, NULL);
-    g_signal_connect(mp4sink, "new-sample", G_CALLBACK(mp4sink_new_sample), &hlsOutput);
+    GstElement *tssink = gst_element_factory_make("appsink", NULL);
+    g_object_set(tssink, "emit-signals", TRUE, "sync", FALSE, NULL);
+    g_signal_connect(tssink, "new-sample", G_CALLBACK(tssink_new_sample), &hlsOutput);
 
     gst_bin_add_many(GST_BIN(pipeline), videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
     gst_element_link_many(videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
-    gst_bin_add_many(GST_BIN(pipeline), mp4queue, mp4mux, tsparse, mp4sink, NULL);
-    gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(mp4queue, "sink"));
-    gst_element_link_many(mp4queue, mp4mux, tsparse, mp4sink, NULL);
+    gst_bin_add_many(GST_BIN(pipeline), tsqueue, tsmux, tsparse, tssink, NULL);
+    gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(tsqueue, "sink"));
+    gst_element_link_many(tsqueue, tsmux, tsparse, tssink, NULL);
     
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
