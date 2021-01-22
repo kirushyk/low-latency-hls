@@ -95,7 +95,7 @@ std::string HLSOutput::getPlaylist() const
 {
     std::stringstream ss;
     ss << "#EXTM3U" << std::endl;
-    ss << "#EXT-X-VERSION:6" << std::endl;
+    ss << "#EXT-X-VERSION:3" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
     ss << "#EXT-X-ALLOW-CACHE:NO" << std::endl;
     ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
