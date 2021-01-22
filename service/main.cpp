@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
         {
             std::string segmentData = segment->data.str();
             std::cerr << path << ", sent " << segmentData.size() << " bytes" << std::endl;
-            soup_message_set_response(msg, "video/MP2T", SOUP_MEMORY_COPY, segmentData.c_str(), segmentData.size());
+            soup_message_set_response(msg, "video/mp2t", SOUP_MEMORY_COPY, segmentData.c_str(), segmentData.size());
             soup_message_set_status(msg, SOUP_STATUS_OK);
         }
         else
