@@ -1,6 +1,7 @@
 lhls_service_sources = [
-    'main.cpp',
-    'file-endpoint.cpp'
+    'file-endpoint.cpp',
+    'hls.cpp',
+    'main.cpp'
 ]
 
 executable('lhls-service',

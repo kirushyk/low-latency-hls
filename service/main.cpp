@@ -8,6 +8,7 @@
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include "file-endpoint.hpp"
+#include "hls.hpp"
 
 static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
 {
@@ -23,137 +24,15 @@ static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
     return TRUE;
 }
 
-struct HLSSegment
-{
-    int number;
-    GDateTime *dateTime;
-    GstBuffer *buffer;
-    GstMapInfo mapInfo;
-    GstSample *sample;
-    static GTimeZone *timeZone;
-
-    HLSSegment();
-    ~HLSSegment();
-};
-
-GTimeZone * HLSSegment::timeZone = NULL;
-
-HLSSegment::HLSSegment()
-{
-    if (timeZone == NULL)
-    {
-        timeZone = g_time_zone_new_utc();
-    }
-    dateTime = g_date_time_new_now(timeZone);
-}
-
-HLSSegment::~HLSSegment()
-{
-    if (buffer)
-        gst_buffer_unmap(buffer, &mapInfo);
-    if (sample)
-        gst_sample_unref(sample);
-    if (dateTime)
-    {
-        g_date_time_unref(dateTime);
-    }
-}
-
-#define SEGMENTS_COUNT 5
-
-struct HLSOutput
-{
-    int lastIndex, lastSegmentNumber;
-    std::list<std::shared_ptr<HLSSegment>> segments;
-public:
-    HLSOutput();
-    void pushSegment(GstSample *sample);
-    std::shared_ptr<HLSSegment> getSegment(int number) const;
-    std::string getPlaylist() const;
-};
-
-HLSOutput::HLSOutput()
-{
-    lastIndex = 0;
-    lastSegmentNumber = 0;
-}
-
-void HLSOutput::pushSegment(GstSample *sample)
-{
-    std::shared_ptr<HLSSegment> segment = std::make_shared<HLSSegment>();
-
-    segment->sample = sample;
-    segment->buffer = gst_sample_get_buffer(sample);
-    gst_buffer_map(segment->buffer, &segment->mapInfo, (GstMapFlags)(GST_MAP_READ));
-    segment->number = lastSegmentNumber;
-
-    segments.push_back(segment);
-    
-    lastSegmentNumber++;
-
-    if (segments.size() > SEGMENTS_COUNT)
-    {
-        segments.pop_front();
-    }
-
-    // std::cerr << "fmp4.";
-}
-
-std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
-{
-    for (const auto& segment: segments)
-    {
-        if (segment->number == number)
-        {
-            return segment;
-        }
-    }
-    return NULL;
-}
-
-std::string HLSOutput::getPlaylist() const
-{
-    std::stringstream ss;
-    ss << "#EXTM3U" << std::endl;
-    ss << "#EXT-X-TARGETDURATION:4" << std::endl;
-    ss << "#EXT-X-VERSION:6" << std::endl;
-    ss << "#EXT-X-MEDIA-SEQUENCE:" << lastSegmentNumber << std::endl;
-    // gchar *g_date_time_format_iso8601 (GDateTime *datetime);
-    // ss << "#EXT-X-PROGRAM-DATE-TIME:2019-02-14T02:13:36.106Z" << std::endl;
-    for (const auto& segment: segments)
-    {
-        if (segment->buffer)
-        {
-            ss << "#EXTINF:" << segment->buffer->duration * 0.000000001 << "," << std::endl;
-            ss << "segments/" << segment->number << ".mp4" << std::endl;
-        }
-    }
-    return ss.str();
-}
-
 static GstFlowReturn mp4sink_new_sample(GstAppSink *appsink, gpointer user_data)
 {
     HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
     if (GstSample *sample = gst_app_sink_pull_sample(appsink))
     {
-        hlsOutput->pushSegment(sample);
+        hlsOutput->pushSample(sample);
     }
     return GST_FLOW_OK;
 }
-
-// static GstFlowReturn tssink_new_sample(GstAppSink *appsink, gpointer user_data)
-// {
-//     if (GstSample *sample = gst_app_sink_pull_sample(appsink)) 
-//     {
-//         GstBuffer *buffer = gst_sample_get_buffer(sample);
-//         GstMapInfo mapInfo;
-//         gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
-//         gst_buffer_unmap(buffer, &mapInfo);
-//         gst_sample_unref(sample);
-//     }
-//     std::cerr << "ts.";
-//     return GST_FLOW_OK;
-// }
 
 int main(int argc, char *argv[])
 {
@@ -166,31 +45,21 @@ int main(int argc, char *argv[])
     GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
     GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
     GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
-    g_object_set(h264enc, "realtime", TRUE, NULL);
+    g_object_set(h264enc, "realtime", TRUE, "max-keyframe-interval-duration", 4 * GST_SECOND, NULL);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
     GstElement *mp4queue = gst_element_factory_make("queue", NULL);
     GstElement *mp4mux = gst_element_factory_make("mp4mux", NULL);
-    g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", 400, "streamable", TRUE, NULL);
+    g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", 334, "streamable", TRUE, NULL);
     GstElement *mp4sink = gst_element_factory_make("appsink", NULL);
     g_object_set(mp4sink, "emit-signals", TRUE, "sync", FALSE, NULL);
     g_signal_connect(mp4sink, "new-sample", G_CALLBACK(mp4sink_new_sample), &hlsOutput);
-
-    // GstElement *tsqueue = gst_element_factory_make("queue", NULL);
-    // GstElement *tsmux = gst_element_factory_make("mpegtsmux", NULL);
-    // GstElement *tssink = gst_element_factory_make("appsink", NULL);
-    // g_object_set(tssink, "emit-signals", TRUE, "sync", FALSE, NULL);
-    // g_signal_connect(tssink, "new-sample", G_CALLBACK(tssink_new_sample), NULL);
 
     gst_bin_add_many(GST_BIN(pipeline), videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
     gst_element_link_many(videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
     gst_bin_add_many(GST_BIN(pipeline), mp4queue, mp4mux, mp4sink, NULL);
     gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(mp4queue, "sink"));
     gst_element_link_many(mp4queue, mp4mux, mp4sink, NULL);
-
-    // gst_bin_add_many(GST_BIN(pipeline), tsqueue, tsmux, tssink, NULL);
-    // gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(tsqueue, "sink"));
-    // gst_element_link_many(tsqueue, tsmux, tssink, NULL);
     
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
