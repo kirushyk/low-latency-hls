@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
     GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
     GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
-    g_object_set(h264enc, "realtime", TRUE, "max-keyframe-interval-duration", 4 * GST_SECOND, NULL);
+    g_object_set(h264enc, "realtime", TRUE, "max-keyframe-interval-duration", 200000000, NULL);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
     GstElement *mp4queue = gst_element_factory_make("queue", NULL);
