@@ -30,6 +30,7 @@ HLSOutput::HLSOutput()
 {
     lastIndex = 0;
     lastSegmentNumber = 0;
+    mediaSequenceNumber = 1;
 }
 
 void HLSOutput::pushSample(GstSample *sample)
@@ -62,6 +63,7 @@ void HLSOutput::pushSample(GstSample *sample)
         segments.push_back(segment);
         if (segments.size() > SEGMENTS_COUNT)
         {
+            mediaSequenceNumber++;
             segments.pop_front();
         }
     }
@@ -96,7 +98,7 @@ std::string HLSOutput::getPlaylist() const
     ss << "#EXT-X-VERSION:6" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
     ss << "#EXT-X-ALLOW-CACHE:NO" << std::endl;
-    ss << "#EXT-X-MEDIA-SEQUENCE:" << lastSegmentNumber << std::endl;
+    ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
     // gchar *g_date_time_format_iso8601 (GDateTime *datetime);
     // ss << "#EXT-X-PROGRAM-DATE-TIME:2019-02-14T02:13:36.106Z" << std::endl;
     for (const auto& segment: segments)

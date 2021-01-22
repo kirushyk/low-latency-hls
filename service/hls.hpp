@@ -26,7 +26,7 @@ struct HLSSegment
 
 struct HLSOutput
 {
-    int lastIndex, lastSegmentNumber;
+    int lastIndex, lastSegmentNumber, mediaSequenceNumber;
     std::list<std::shared_ptr<HLSSegment>> segments;
 public:
     HLSOutput();
