@@ -91,7 +91,7 @@ std::string HLSOutput::getPlaylist() const
         if (segment->data)
         {
             ss << "#EXTINF:" << segment->duration * 0.000000001 << "," << std::endl;
-            ss << "segments/" << segment->number << ".mp4" << std::endl;
+            ss << "/api/segments/" << segment->number << ".mp4" << std::endl;
         }
     }
     return ss.str();
