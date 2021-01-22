@@ -1,6 +1,6 @@
 #pragma once
 #define SEGMENTS_COUNT 7
-#define SEGMENT_DURATION 4
+#define SEGMENT_DURATION 6
 #include <sstream>
 #include <list>
 #include <glib.h>

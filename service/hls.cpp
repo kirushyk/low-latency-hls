@@ -1,4 +1,5 @@
 #include "hls.hpp"
+#include <iostream>
 
 GTimeZone * HLSSegment::timeZone = NULL;
 
@@ -68,7 +69,16 @@ void HLSOutput::pushSample(GstSample *sample)
         }
     }
 
-    GstMapInfo mapInfo;
+    GstMapInfo mapInfo;         
+    // if (GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT))
+    // {
+    //     std::cerr << ".";
+    // }
+    // else
+    // {
+    //     std::cerr << "!";
+    // }
+
     if (buffer->duration != GST_CLOCK_TIME_NONE)
         segment->duration += buffer->duration;
     else
