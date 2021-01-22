@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstdio>
 #include <sstream>
 #include <memory>
 #include <list>
@@ -73,6 +74,23 @@ int main(int argc, char *argv[])
     {
         set_error_message(msg, SOUP_STATUS_NOT_FOUND);
     }, NULL, NULL);
+    soup_server_add_handler(http_server, "/api/segments/", [](SoupServer *, SoupMessage *msg, const char *path, GHashTable *, SoupClientContext *, gpointer user_data)
+    {
+        int segmentNumber = 0;
+        sscanf(path + 14, "%d.m3u8", &segmentNumber);
+        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(segmentNumber);
+        if (segment)
+        {
+            std::string segmentData = segment->data.str();
+            soup_message_set_response(msg, "video/mp4", SOUP_MEMORY_COPY, segmentData.c_str(), segmentData.size());
+            soup_message_set_status(msg, SOUP_STATUS_OK);
+        }
+        else
+        {
+            set_error_message(msg, SOUP_STATUS_NOT_FOUND);
+        }
+    }, &hlsOutput, NULL);
     soup_server_add_handler(http_server, "/api/plain.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
