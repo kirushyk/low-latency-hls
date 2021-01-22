@@ -7,7 +7,9 @@
 #include <glib.h>
 #include <libsoup/soup.h>
 #include <gst/gst.h>
+#include <zlib.h>
 #include <gst/app/gstappsink.h>
+#include <gst/video/video.h>
 #include "file-endpoint.hpp"
 #include "hls.hpp"
 
@@ -31,6 +33,7 @@ static GstFlowReturn mp4sink_new_sample(GstAppSink *appsink, gpointer user_data)
     if (GstSample *sample = gst_app_sink_pull_sample(appsink))
     {
         hlsOutput->pushSample(sample);
+        // gst_video_event_new_upstream_force_key_unit();
     }
     return GST_FLOW_OK;
 }
@@ -106,8 +109,30 @@ int main(int argc, char *argv[])
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         soup_message_headers_append(msg->response_headers, "Expires", "0");
-        soup_message_set_response(msg, "application/vnd.apple.mpegURL", SOUP_MEMORY_COPY, playlist.c_str(), playlist.size());
+        soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
+        soup_message_headers_append(msg->response_headers, "Content-Encoding", "gzip");
+
+        z_stream zs;
+        zs.zalloc = Z_NULL;
+        zs.zfree = Z_NULL;
+        zs.opaque = Z_NULL;
+        zs.avail_in = (uInt)playlist.size();
+        zs.next_in = (Bytef *)playlist.c_str();
+        const int CHUNK_SIZE = 4096;
+        char chunk[CHUNK_SIZE];
+        deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
+        do
+        {
+            zs.avail_out = (uInt)CHUNK_SIZE;
+            zs.next_out = (Bytef *)chunk;
+            deflate(&zs, Z_FINISH);
+            int have = CHUNK_SIZE - zs.avail_out;
+            soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, chunk, have);
+        }
+        while (zs.avail_out == 0);
+        deflateEnd(&zs);
         soup_message_set_status(msg, SOUP_STATUS_OK);
+	    soup_message_body_complete(msg->response_body);
     }, &hlsOutput, NULL);
     soup_server_add_handler(http_server, "/ui", file_callback, NULL, NULL);
     soup_server_add_handler(http_server, "/", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
