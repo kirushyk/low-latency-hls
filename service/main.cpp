@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     // g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", SEGMENT_DURATION * 1000, "presentation-time", TRUE, "streamable", TRUE, NULL);
     // g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", SEGMENT_DURATION * 1000, "presentation-time", TRUE, "streamable", TRUE, NULL);
     GstElement *tsparse = gst_element_factory_make("tsparse", NULL);
-    g_object_set(tsparse, "set-timestamps", TRUE, NULL);
+    g_object_set(tsparse, "set-timestamps", TRUE, "split-on-rai", TRUE, NULL);
     
     GstElement *mp4sink = gst_element_factory_make("appsink", NULL);
     g_object_set(mp4sink, "emit-signals", TRUE, "sync", FALSE, NULL);
