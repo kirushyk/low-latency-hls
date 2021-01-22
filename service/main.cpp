@@ -96,7 +96,7 @@ void HLSOutput::pushSegment(GstSample *sample)
         segments.pop_front();
     }
 
-    std::cerr << "fmp4.";
+    // std::cerr << "fmp4.";
 }
 
 std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
@@ -124,7 +124,7 @@ std::string HLSOutput::getPlaylist() const
     {
         if (segment->buffer)
         {
-            ss << "#EXTINF:4," << std::endl;
+            ss << "#EXTINF:" << segment->buffer->duration * 0.000000001 << "," << std::endl;
             ss << "segments/" << segment->number << ".mp4" << std::endl;
         }
     }
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
     GstElement *mp4queue = gst_element_factory_make("queue", NULL);
     GstElement *mp4mux = gst_element_factory_make("mp4mux", NULL);
-    g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", 4000, "streamable", TRUE, NULL);
+    g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", 400, "streamable", TRUE, NULL);
     GstElement *mp4sink = gst_element_factory_make("appsink", NULL);
     g_object_set(mp4sink, "emit-signals", TRUE, "sync", FALSE, NULL);
     g_signal_connect(mp4sink, "new-sample", G_CALLBACK(mp4sink_new_sample), &hlsOutput);
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
     {
         HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
         std::string playlist = hlsOutput->getPlaylist();
-        soup_message_set_response(msg, "vnd.apple.mpegURL", SOUP_MEMORY_COPY, playlist.c_str(), playlist.size());
+        soup_message_set_response(msg, "application/vnd.apple.mpegURL", SOUP_MEMORY_COPY, playlist.c_str(), playlist.size());
         soup_message_set_status(msg, SOUP_STATUS_OK);
     }, &hlsOutput, NULL);
     soup_server_add_handler(http_server, "/ui", file_callback, NULL, NULL);
