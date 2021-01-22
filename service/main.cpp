@@ -50,17 +50,21 @@ int main(int argc, char *argv[])
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
     GstElement *mp4queue = gst_element_factory_make("queue", NULL);
-    GstElement *mp4mux = gst_element_factory_make("mp4mux", NULL);
-    g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", 334, "streamable", TRUE, NULL);
+    GstElement *mp4mux = gst_element_factory_make("mpegtsmux", NULL);
+    // g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", SEGMENT_DURATION * 1000, "presentation-time", TRUE, "streamable", TRUE, NULL);
+    // g_object_set(mp4mux, "faststart", TRUE, "fragment-duration", SEGMENT_DURATION * 1000, "presentation-time", TRUE, "streamable", TRUE, NULL);
+    GstElement *tsparse = gst_element_factory_make("tsparse", NULL);
+    g_object_set(tsparse, "set-timestamps", TRUE, NULL);
+    
     GstElement *mp4sink = gst_element_factory_make("appsink", NULL);
     g_object_set(mp4sink, "emit-signals", TRUE, "sync", FALSE, NULL);
     g_signal_connect(mp4sink, "new-sample", G_CALLBACK(mp4sink_new_sample), &hlsOutput);
 
     gst_bin_add_many(GST_BIN(pipeline), videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
     gst_element_link_many(videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
-    gst_bin_add_many(GST_BIN(pipeline), mp4queue, mp4mux, mp4sink, NULL);
+    gst_bin_add_many(GST_BIN(pipeline), mp4queue, mp4mux, tsparse, mp4sink, NULL);
     gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(mp4queue, "sink"));
-    gst_element_link_many(mp4queue, mp4mux, mp4sink, NULL);
+    gst_element_link_many(mp4queue, mp4mux, tsparse, mp4sink, NULL);
     
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
@@ -77,13 +81,17 @@ int main(int argc, char *argv[])
     soup_server_add_handler(http_server, "/api/segments/", [](SoupServer *, SoupMessage *msg, const char *path, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         int segmentNumber = 0;
-        sscanf(path + 14, "%d.m3u8", &segmentNumber);
+        sscanf(path + 14, "%d.ts", &segmentNumber);
         HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
         std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(segmentNumber);
+        soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
+        soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
+        soup_message_headers_append(msg->response_headers, "Expires", "0");
         if (segment)
         {
             std::string segmentData = segment->data.str();
-            soup_message_set_response(msg, "video/mp4", SOUP_MEMORY_COPY, segmentData.c_str(), segmentData.size());
+            std::cerr << path << ", sent " << segmentData.size() << " bytes" << std::endl;
+            soup_message_set_response(msg, "video/MP2T", SOUP_MEMORY_COPY, segmentData.c_str(), segmentData.size());
             soup_message_set_status(msg, SOUP_STATUS_OK);
         }
         else
@@ -95,6 +103,9 @@ int main(int argc, char *argv[])
     {
         HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
         std::string playlist = hlsOutput->getPlaylist();
+        soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
+        soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
+        soup_message_headers_append(msg->response_headers, "Expires", "0");
         soup_message_set_response(msg, "application/vnd.apple.mpegURL", SOUP_MEMORY_COPY, playlist.c_str(), playlist.size());
         soup_message_set_status(msg, SOUP_STATUS_OK);
     }, &hlsOutput, NULL);

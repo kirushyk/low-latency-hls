@@ -4,7 +4,9 @@ GTimeZone * HLSSegment::timeZone = NULL;
 
 HLSSegment::HLSSegment()
 {
+    finished = false;
     duration = 0;
+    pts = 0;
     if (timeZone == NULL)
     {
         timeZone = g_time_zone_new_utc();
@@ -33,13 +35,15 @@ HLSOutput::HLSOutput()
 void HLSOutput::pushSample(GstSample *sample)
 {
     std::shared_ptr<HLSSegment> segment;
-
+    
     GstBuffer *buffer = gst_sample_get_buffer(sample);
 
+    std::shared_ptr<HLSSegment> recentSegment;
     if (segments.size())
     {
-        std::shared_ptr<HLSSegment> recentSegment = segments.back();
-        if ((recentSegment->duration + buffer->duration) < (SEGMENT_DURATION * GST_SECOND))
+        recentSegment = segments.back();
+        // if ((buffer->duration == GST_CLOCK_TIME_NONE) || ((recentSegment->duration + buffer->duration) < (SEGMENT_DURATION * GST_SECOND)))
+        if ((buffer->pts - recentSegment->pts) < (SEGMENT_DURATION * GST_SECOND))
         {
             segment = recentSegment;
         }
@@ -47,7 +51,13 @@ void HLSOutput::pushSample(GstSample *sample)
 
     if (!segment)
     {
+        if (recentSegment)
+        {
+            recentSegment->duration = buffer->pts - recentSegment->pts;
+            recentSegment->finished = true;
+        }
         segment = std::make_shared<HLSSegment>();
+        segment->pts = buffer->pts;
         segment->number = lastSegmentNumber++;
         segments.push_back(segment);
         if (segments.size() > SEGMENTS_COUNT)
@@ -59,6 +69,8 @@ void HLSOutput::pushSample(GstSample *sample)
     GstMapInfo mapInfo;
     if (buffer->duration != GST_CLOCK_TIME_NONE)
         segment->duration += buffer->duration;
+    else
+        segment->duration = buffer->pts - segment->pts + 0;
     gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
     segment->data.write(reinterpret_cast<const char *>(mapInfo.data), mapInfo.size);
     gst_buffer_unmap(buffer, &mapInfo);
@@ -88,10 +100,10 @@ std::string HLSOutput::getPlaylist() const
     // ss << "#EXT-X-PROGRAM-DATE-TIME:2019-02-14T02:13:36.106Z" << std::endl;
     for (const auto& segment: segments)
     {
-        if (segment->data)
+        if (segment->finished && segment->data)
         {
             ss << "#EXTINF:" << segment->duration * 0.000000001 << "," << std::endl;
-            ss << "/api/segments/" << segment->number << ".mp4" << std::endl;
+            ss << "/api/segments/" << segment->number << ".ts" << std::endl;
         }
     }
     return ss.str();

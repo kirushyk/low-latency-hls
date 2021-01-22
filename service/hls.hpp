@@ -9,12 +9,14 @@
 struct HLSSegment
 {
     int number;
+    bool finished;
     static GTimeZone *timeZone;
     GDateTime *dateTime;
     // GstBuffer *buffer;
     // GstMapInfo mapInfo;
     // GstSample *sample;
     GstClockTime duration;
+    GstClockTime pts;
     // std::vector<std::uint8_t> data;
     std::stringstream data;
 
