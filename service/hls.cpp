@@ -45,7 +45,9 @@ void HLSOutput::pushSample(GstSample *sample)
     {
         recentSegment = segments.back();
         // if ((buffer->duration == GST_CLOCK_TIME_NONE) || ((recentSegment->duration + buffer->duration) < (SEGMENT_DURATION * GST_SECOND)))
-        if ((buffer->pts - recentSegment->pts) < (SEGMENT_DURATION * GST_SECOND))
+        bool targetDurationSoon = (buffer->pts - recentSegment->pts) > ((SEGMENT_DURATION - 2) * GST_SECOND);
+        bool sampleContainsIDR = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
+        if (!(targetDurationSoon && sampleContainsIDR))
         {
             segment = recentSegment;
         }
@@ -69,20 +71,11 @@ void HLSOutput::pushSample(GstSample *sample)
         }
     }
 
-    GstMapInfo mapInfo;         
-    // if (GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT))
-    // {
-    //     std::cerr << ".";
-    // }
+    // if (buffer->duration != GST_CLOCK_TIME_NONE)
+    //     segment->duration += buffer->duration;
     // else
-    // {
-    //     std::cerr << "!";
-    // }
-
-    if (buffer->duration != GST_CLOCK_TIME_NONE)
-        segment->duration += buffer->duration;
-    else
-        segment->duration = buffer->pts - segment->pts + 0;
+    //     segment->duration = buffer->pts - segment->pts + 0;
+    GstMapInfo mapInfo;
     gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
     segment->data.write(reinterpret_cast<const char *>(mapInfo.data), mapInfo.size);
     gst_buffer_unmap(buffer, &mapInfo);
