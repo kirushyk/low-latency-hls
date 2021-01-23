@@ -47,9 +47,11 @@ int main(int argc, char *argv[])
     GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
     GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
     GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
-    //g_object_set(h264enc, "key-int-max", 30, NULL);
-    g_object_set(h264enc, "realtime", TRUE, "max-keyframe-interval-duration", GST_SECOND, NULL);
+    // GstElement *h264enc = gst_element_factory_make("x264enc", NULL);
+    // g_object_set(h264enc, "key-int-max", 30, NULL);
+    g_object_set(h264enc, "max-keyframe-interval", 30, NULL);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
+    g_object_set(h264parse, "config-interval", -1, NULL);
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
     GstElement *tsqueue = gst_element_factory_make("queue", NULL);
     GstElement *tsmux = gst_element_factory_make("mpegtsmux", NULL);

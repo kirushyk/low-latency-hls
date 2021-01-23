@@ -90,8 +90,8 @@ std::string HLSOutput::getPlaylist() const
 {
     std::stringstream ss;
     ss << "#EXTM3U" << std::endl;
-    ss << "#EXT-X-VERSION:3" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
+    ss << "#EXT-X-VERSION:4" << std::endl;
     ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
     bool dateTimeReported = false;
     for (const auto& segment: segments)
