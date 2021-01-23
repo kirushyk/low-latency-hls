@@ -86,7 +86,6 @@ int main(int argc, char *argv[])
         std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(segmentNumber);
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
-        soup_message_headers_append(msg->response_headers, "Expires", "0");
         if (segment)
         {
             soup_message_headers_append(msg->response_headers, "Content-Type", "video/mp2t");
@@ -108,7 +107,6 @@ int main(int argc, char *argv[])
         std::string playlist = hlsOutput->getPlaylist();
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
-        soup_message_headers_append(msg->response_headers, "Expires", "0");
         soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
         soup_message_headers_append(msg->response_headers, "Content-Encoding", "gzip");
 
