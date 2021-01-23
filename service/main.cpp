@@ -89,14 +89,13 @@ int main(int argc, char *argv[])
         soup_message_headers_append(msg->response_headers, "Expires", "0");
         if (segment)
         {
-            // std::cerr << path << ", sent " << segment->data.size() << " bytes" << std::endl;
-            // soup_message_set_response(msg, "video/mp2t", SOUP_MEMORY_COPY, (gchar *)segment->data.data(), segment->data.size());
-            // soup_message_set_status(msg, SOUP_STATUS_OK);
-
-            std::string segmentData = segment->data.str();
-            std::cerr << path << ", sent " << segmentData.size() << " bytes" << std::endl;
-            soup_message_set_response(msg, "video/mp2t", SOUP_MEMORY_COPY, segmentData.data(), segmentData.size());
+            soup_message_headers_append(msg->response_headers, "Content-Type", "video/mp2t");
             soup_message_set_status(msg, SOUP_STATUS_OK);
+            for (const auto &b: segment->data)
+            {
+                soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
+            }
+            soup_message_body_complete(msg->response_body);
         }
         else
         {

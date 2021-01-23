@@ -41,18 +41,12 @@ void HLSOutput::pushSample(GstSample *sample)
     if (segments.size())
     {
         recentSegment = segments.back();
-        // if ((buffer->duration == GST_CLOCK_TIME_NONE) || ((recentSegment->duration + buffer->duration) < (SEGMENT_DURATION * GST_SECOND)))
         bool targetDurationSoon = (buffer->pts - recentSegment->pts) > ((SEGMENT_DURATION - 2) * GST_SECOND);
         bool sampleContainsIDR = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
         if (!(targetDurationSoon && sampleContainsIDR))
         {
             segment = recentSegment;
         }
-        // if (targetDurationSoon && !sampleContainsIDR)
-        // {
-        //     GstEvent *idrRequest = gst_video_event_new_upstream_force_key_unit(GST_CLOCK_TIME_NONE, TRUE, 0);
-        //     gst_pad_push_event
-        // }
     }
 
     if (!segment)
@@ -73,15 +67,9 @@ void HLSOutput::pushSample(GstSample *sample)
         }
     }
 
-    // if (buffer->duration != GST_CLOCK_TIME_NONE)
-    //     segment->duration += buffer->duration;
-    // else
-    //     segment->duration = buffer->pts - segment->pts + 0;
     GstMapInfo mapInfo;
     gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
-    segment->data.write(reinterpret_cast<const char *>(mapInfo.data), mapInfo.size);
-    //segment->data.insert(segment->data.end(), mapInfo.size, *reinterpret_cast<const std::uint8_t *>(mapInfo.data));
-    // iterator insert (const_iterator position, size_type n, const value_type& val);
+    segment->data.push_back(std::vector<std::uint8_t>(mapInfo.data, mapInfo.data + mapInfo.size));
     gst_buffer_unmap(buffer, &mapInfo);
     gst_sample_unref(sample);
 }
@@ -108,7 +96,7 @@ std::string HLSOutput::getPlaylist() const
     bool dateTimeReported = false;
     for (const auto& segment: segments)
     {
-        if (segment->finished && !segment->data.str().empty())
+        if (segment->finished)
         {
             if (!dateTimeReported)
             {

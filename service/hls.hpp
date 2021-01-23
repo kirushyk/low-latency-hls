@@ -16,10 +16,8 @@ struct HLSSegment
     GDateTime *dateTime;
     GstClockTime duration;
     GstClockTime pts;
-    // std::vector<std::uint8_t> data;
-    std::stringstream data;
+    std::list<std::vector<std::uint8_t>> data;
     
-
     HLSSegment();
     ~HLSSegment();
 };
