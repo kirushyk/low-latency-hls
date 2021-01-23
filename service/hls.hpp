@@ -4,6 +4,8 @@
 #include <sstream>
 #include <list>
 #include <glib.h>
+#include <vector>
+#include <cstdint>
 #include <gst/gst.h>
 
 struct HLSSegment
@@ -12,13 +14,11 @@ struct HLSSegment
     bool finished;
     static GTimeZone *timeZone;
     GDateTime *dateTime;
-    // GstBuffer *buffer;
-    // GstMapInfo mapInfo;
-    // GstSample *sample;
     GstClockTime duration;
     GstClockTime pts;
     // std::vector<std::uint8_t> data;
     std::stringstream data;
+    
 
     HLSSegment();
     ~HLSSegment();

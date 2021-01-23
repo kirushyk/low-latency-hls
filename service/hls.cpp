@@ -1,4 +1,5 @@
 #include "hls.hpp"
+#include <gst/video/video.h>
 #include <iostream>
 
 GTimeZone * HLSSegment::timeZone = NULL;
@@ -17,10 +18,6 @@ HLSSegment::HLSSegment()
 
 HLSSegment::~HLSSegment()
 {
-    // if (buffer)
-    //     gst_buffer_unmap(buffer, &mapInfo);
-    // if (sample)
-    //     gst_sample_unref(sample);
     if (dateTime)
     {
         g_date_time_unref(dateTime);
@@ -51,6 +48,11 @@ void HLSOutput::pushSample(GstSample *sample)
         {
             segment = recentSegment;
         }
+        // if (targetDurationSoon && !sampleContainsIDR)
+        // {
+        //     GstEvent *idrRequest = gst_video_event_new_upstream_force_key_unit(GST_CLOCK_TIME_NONE, TRUE, 0);
+        //     gst_pad_push_event
+        // }
     }
 
     if (!segment)
@@ -78,6 +80,8 @@ void HLSOutput::pushSample(GstSample *sample)
     GstMapInfo mapInfo;
     gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
     segment->data.write(reinterpret_cast<const char *>(mapInfo.data), mapInfo.size);
+    //segment->data.insert(segment->data.end(), mapInfo.size, *reinterpret_cast<const std::uint8_t *>(mapInfo.data));
+    // iterator insert (const_iterator position, size_type n, const value_type& val);
     gst_buffer_unmap(buffer, &mapInfo);
     gst_sample_unref(sample);
 }
@@ -104,7 +108,7 @@ std::string HLSOutput::getPlaylist() const
     bool dateTimeReported = false;
     for (const auto& segment: segments)
     {
-        if (segment->finished && segment->data)
+        if (segment->finished && !segment->data.str().empty())
         {
             if (!dateTimeReported)
             {

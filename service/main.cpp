@@ -9,7 +9,6 @@
 #include <gst/gst.h>
 #include <zlib.h>
 #include <gst/app/gstappsink.h>
-#include <gst/video/video.h>
 #include "file-endpoint.hpp"
 #include "hls.hpp"
 
@@ -33,7 +32,6 @@ static GstFlowReturn tssink_new_sample(GstAppSink *appsink, gpointer user_data)
     if (GstSample *sample = gst_app_sink_pull_sample(appsink))
     {
         hlsOutput->pushSample(sample);
-        // gst_video_event_new_upstream_force_key_unit();
     }
     return GST_FLOW_OK;
 }
@@ -45,10 +43,11 @@ int main(int argc, char *argv[])
     gst_init(&argc, &argv);
     GstElement *pipeline = gst_pipeline_new(NULL);
     GstElement *videotestsrc = gst_element_factory_make("videotestsrc", NULL);
-    g_object_set(videotestsrc, "is-live", TRUE, NULL);
+    g_object_set(videotestsrc, "is-live", TRUE, "do-timestamp", TRUE, "pattern", 18, NULL);
     GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
     GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
     GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
+    //g_object_set(h264enc, "key-int-max", 30, NULL);
     g_object_set(h264enc, "realtime", TRUE, "max-keyframe-interval-duration", GST_SECOND, NULL);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
@@ -90,9 +89,13 @@ int main(int argc, char *argv[])
         soup_message_headers_append(msg->response_headers, "Expires", "0");
         if (segment)
         {
+            // std::cerr << path << ", sent " << segment->data.size() << " bytes" << std::endl;
+            // soup_message_set_response(msg, "video/mp2t", SOUP_MEMORY_COPY, (gchar *)segment->data.data(), segment->data.size());
+            // soup_message_set_status(msg, SOUP_STATUS_OK);
+
             std::string segmentData = segment->data.str();
             std::cerr << path << ", sent " << segmentData.size() << " bytes" << std::endl;
-            soup_message_set_response(msg, "video/mp2t", SOUP_MEMORY_COPY, segmentData.c_str(), segmentData.size());
+            soup_message_set_response(msg, "video/mp2t", SOUP_MEMORY_COPY, segmentData.data(), segmentData.size());
             soup_message_set_status(msg, SOUP_STATUS_OK);
         }
         else
