@@ -12,6 +12,8 @@
 #include "file-endpoint.hpp"
 #include "hls.hpp"
 
+#define APPLICATION_NAME "HLS Demo"
+
 static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
 {
     // GMainLoop *main_loop = reinterpret_cast<GMainLoop *>(user_data);
@@ -36,20 +38,72 @@ static GstFlowReturn tssink_new_sample(GstAppSink *appsink, gpointer user_data)
     return GST_FLOW_OK;
 }
 
+static void rtspsrc_pad_added(GstElement *src, GstPad *new_pad, GstElement *rtph264depay)
+{
+    GstPad *sinkPad = gst_element_get_static_pad(rtph264depay, "sink");
+
+    GstPadLinkReturn ret;
+    GstCaps *new_pad_caps = NULL;
+    GstStructure *new_pad_struct = NULL;
+    const gchar *new_pad_type = NULL;
+    const gchar *new_pad_media = NULL;
+
+    g_print("Received new pad '%s' from '%s':\n", GST_PAD_NAME(new_pad), GST_ELEMENT_NAME(src));
+
+    /* Check the new pad's type */
+    new_pad_caps = gst_pad_get_current_caps(new_pad);
+    new_pad_struct = gst_caps_get_structure(new_pad_caps, 0);
+    new_pad_type = gst_structure_get_name(new_pad_struct);
+    new_pad_media = gst_structure_get_string(new_pad_struct, "media");
+    if (!g_str_has_prefix(new_pad_type, "application/x-rtp")
+        || !g_str_equal(new_pad_media, "video"))
+    {
+        g_print("It has type '%s' which is not RTP stream OR media '%s' which is not video. "
+                "Ignoring.\n",
+                new_pad_type, new_pad_media);
+        goto exit;
+    }
+
+    /* Attempt the link */
+    ret = gst_pad_link(new_pad, sinkPad);
+    if (GST_PAD_LINK_FAILED(ret))
+    {
+        g_print("Type is '%s' but link failed.\n", new_pad_type);
+    }
+
+exit:
+    /* Unreference the new pad's caps, if we got them */
+    if (new_pad_caps != NULL)
+    {
+        gst_caps_unref(new_pad_caps);
+    }
+}
+
+
 int main(int argc, char *argv[])
 {
     HLSOutput hlsOutput;
 
+    if (argc != 2)
+    {
+        std::cerr << "usage:\n\t" << argv[0] << " rtsp://..." << std::endl;
+        return 0;
+    }
+
     gst_init(&argc, &argv);
     GstElement *pipeline = gst_pipeline_new(NULL);
-    GstElement *videotestsrc = gst_element_factory_make("videotestsrc", NULL);
-    g_object_set(videotestsrc, "is-live", TRUE, "do-timestamp", TRUE, "pattern", 18, NULL);
-    GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
-    GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
-    GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
+    // GstElement *videotestsrc = gst_element_factory_make("videotestsrc", NULL);
+    // g_object_set(videotestsrc, "is-live", TRUE, "do-timestamp", TRUE, "pattern", 18, NULL);
+    // GstElement *timeoverlay = gst_element_factory_make("identity", NULL);
+    // GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
+    // GstElement *h264enc = gst_element_factory_make("vtenc_h264", NULL);
     // GstElement *h264enc = gst_element_factory_make("x264enc", NULL);
     // g_object_set(h264enc, "key-int-max", 30, NULL);
-    g_object_set(h264enc, "max-keyframe-interval", 30, NULL);
+    // g_object_set(h264enc, "max-keyframe-interval", 30, NULL);
+    GstElement *rtspsrc = gst_element_factory_make("rtspsrc", NULL);
+    g_object_set(rtspsrc, "location", argv[1], "user-agent", APPLICATION_NAME, NULL);
+    GstElement *rtph264depay = gst_element_factory_make("rtph264depay", NULL);
+    g_signal_connect(rtspsrc, "pad-added", G_CALLBACK(rtspsrc_pad_added), rtph264depay);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     g_object_set(h264parse, "config-interval", -1, NULL);
     GstElement *h264tee = gst_element_factory_make("tee", NULL);
@@ -62,8 +116,8 @@ int main(int argc, char *argv[])
     g_object_set(tssink, "emit-signals", TRUE, "sync", FALSE, NULL);
     g_signal_connect(tssink, "new-sample", G_CALLBACK(tssink_new_sample), &hlsOutput);
 
-    gst_bin_add_many(GST_BIN(pipeline), videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
-    gst_element_link_many(videotestsrc, timeoverlay, videoconvert, h264enc, h264parse, h264tee, NULL);
+    gst_bin_add_many(GST_BIN(pipeline), rtspsrc, rtph264depay, /*videotestsrc, timeoverlay, videoconvert, h264enc,*/ h264parse, h264tee, NULL);
+    gst_element_link_many(rtph264depay, /*videotestsrc, timeoverlay, videoconvert, h264enc,*/ h264parse, h264tee, NULL);
     gst_bin_add_many(GST_BIN(pipeline), tsqueue, tsmux, tsparse, tssink, NULL);
     gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(tsqueue, "sink"));
     gst_element_link_many(tsqueue, tsmux, tsparse, tssink, NULL);
@@ -71,7 +125,7 @@ int main(int argc, char *argv[])
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
     const int port = 8080;
-    SoupServer *http_server = soup_server_new(SOUP_SERVER_SERVER_HEADER, "HLS Demo ", NULL);
+    SoupServer *http_server = soup_server_new(SOUP_SERVER_SERVER_HEADER, APPLICATION_NAME, NULL);
     soup_server_add_handler(http_server, NULL, [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
     {
         set_error_message(msg, SOUP_STATUS_NOT_FOUND);
