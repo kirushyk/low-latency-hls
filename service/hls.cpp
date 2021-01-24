@@ -91,7 +91,7 @@ std::string HLSOutput::getPlaylist() const
     std::stringstream ss;
     ss << "#EXTM3U" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
-    ss << "#EXT-X-VERSION:4" << std::endl;
+    ss << "#EXT-X-VERSION:3" << std::endl;
     ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
     bool dateTimeReported = false;
     for (const auto& segment: segments)
@@ -111,3 +111,32 @@ std::string HLSOutput::getPlaylist() const
     }
     return ss.str();
 }
+
+std::string HLSOutput::getLowLatencyPlaylist() const
+{
+    std::stringstream ss;
+    ss << "#EXTM3U" << std::endl;
+    ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
+    ss << "#EXT-X-VERSION:6" << std::endl;
+    ss << "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES" << std::endl;
+    ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_DURATION << std::endl;
+    ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
+    bool dateTimeReported = false;
+    for (const auto& segment: segments)
+    {
+        if (segment->finished)
+        {
+            if (!dateTimeReported)
+            {
+                gchar *formattedDateTime = g_date_time_format_iso8601(segment->dateTime);
+                ss << "#EXT-X-PROGRAM-DATE-TIME:" << formattedDateTime << std::endl;
+                g_free(formattedDateTime);
+                dateTimeReported = true;
+            }
+            ss << "#EXTINF:" << segment->duration * 0.000000001 << "," << std::endl;
+            ss << "/api/segments/" << segment->number << ".ts" << std::endl;
+        }
+    }
+    return ss.str();
+}
+
