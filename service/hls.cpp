@@ -4,6 +4,13 @@
 
 GTimeZone * HLSSegment::timeZone = NULL;
 
+HLSPartialSegment::HLSPartialSegment()
+{
+    finished = false;
+    duration = 0;
+    pts = 0;
+}
+
 HLSSegment::HLSSegment()
 {
     finished = false;
@@ -14,6 +21,7 @@ HLSSegment::HLSSegment()
         timeZone = g_time_zone_new_utc();
     }
     dateTime = g_date_time_new_now(timeZone);
+    lastPartialSegmentNumber = 0;
 }
 
 HLSSegment::~HLSSegment()
@@ -67,9 +75,36 @@ void HLSOutput::pushSample(GstSample *sample)
         }
     }
 
+    std::shared_ptr<HLSPartialSegment> partialSegment;
+    std::shared_ptr<HLSPartialSegment> recentPartialSegment;
+    if (segment->partialSegments.size())
+    {
+        recentPartialSegment = segment->partialSegments.back();
+    }
+    if (recentPartialSegment)
+    {
+        if (buffer->pts - recentPartialSegment->pts < PARTIAL_SEGMENT_MIN_DURATION)
+        {
+            partialSegment = recentPartialSegment;
+        }
+    }
+    if (!partialSegment)
+    {
+        if (recentPartialSegment)
+        {
+            recentPartialSegment->duration = buffer->pts - recentPartialSegment->pts;
+            recentPartialSegment->finished = true;
+        }
+        partialSegment = std::make_shared<HLSPartialSegment>();
+        partialSegment->pts = buffer->pts;
+        partialSegment->number = segment->lastPartialSegmentNumber++;
+        segment->partialSegments.push_back(partialSegment);
+    }
+
     GstMapInfo mapInfo;
     gst_buffer_map(buffer, &mapInfo, (GstMapFlags)(GST_MAP_READ));
     segment->data.push_back(std::vector<std::uint8_t>(mapInfo.data, mapInfo.data + mapInfo.size));
+    partialSegment->data.push_back(std::vector<std::uint8_t>(mapInfo.data, mapInfo.data + mapInfo.size));
     gst_buffer_unmap(buffer, &mapInfo);
     gst_sample_unref(sample);
 }
@@ -128,7 +163,7 @@ std::string HLSOutput::getLowLatencyPlaylist() const
         {
             if (!partInfReported)
             {
-                ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_DURATION << std::endl;
+                ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_MAX_DURATION << std::endl;
                 partInfReported = true;
             }
             ss << "#EXT-X-PART:DURATION=" << partialSegment->duration * 0.000000001;

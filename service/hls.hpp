@@ -1,7 +1,8 @@
 #pragma once
 #define SEGMENTS_COUNT 7
 #define SEGMENT_DURATION 6
-#define PARTIAL_SEGMENT_DURATION 0.3
+#define PARTIAL_SEGMENT_MAX_DURATION 0.3
+#define PARTIAL_SEGMENT_MIN_DURATION 0.2
 #include <sstream>
 #include <memory>
 #include <list>
@@ -13,12 +14,15 @@
 struct HLSPartialSegment
 {
     int number;
+    bool finished;
 
     GstClockTime duration;
     GstClockTime pts;
     std::list<std::vector<std::uint8_t>> data;
 
     bool independent;
+    
+    HLSPartialSegment();
 };
 
 struct HLSSegment
@@ -33,6 +37,7 @@ struct HLSSegment
     GstClockTime pts;
     std::list<std::vector<std::uint8_t>> data;
 
+    int lastPartialSegmentNumber;
     std::list<std::shared_ptr<HLSPartialSegment>> partialSegments;
     
     HLSSegment();
