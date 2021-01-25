@@ -117,11 +117,11 @@ void HLSOutput::pushSample(GstSample *sample)
         partialSegment = std::make_shared<HLSPartialSegment>();
         partialSegment->pts = buffer->pts;
         partialSegment->number = segment->lastPartialSegmentNumber++;
+        if (sampleContainsIDR)
+        {
+            partialSegment->independent = true;
+        }
         segment->partialSegments.push_back(partialSegment);
-    }
-    if (sampleContainsIDR)
-    {
-        partialSegment->independent = true;
     }
 
     GstMapInfo mapInfo;
@@ -206,15 +206,20 @@ std::string HLSOutput::getLowLatencyPlaylist() const
     {
         for (const auto &partialSegment: segment->partialSegments)
         {
-            if (!partialSegment->finished)
-                continue;
-            ss << "#EXT-X-PART:DURATION=" << partialSegment->duration * 0.000000001;
-            ss << ",URI=\"/api/partial/" << segment->number << "." << partialSegment->number << ".ts\"";
-            if (partialSegment->independent)
+            if (partialSegment->finished)
             {
-                ss << ",INDEPENDENT=YES";
+                ss << "#EXT-X-PART:DURATION=" << partialSegment->duration * 0.000000001;
+                ss << ",URI=\"/api/partial/" << segment->number << "." << partialSegment->number << ".ts\"";
+                if (partialSegment->independent)
+                {
+                    ss << ",INDEPENDENT=YES";
+                }
+                ss << std::endl;
             }
-            ss << std::endl;
+            else
+            {
+                ss << "#EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"/api/partial/" << segment->number << "." << partialSegment->number << ".ts\"" << std::endl;
+            }
         }
         if (segment->finished)
         {
