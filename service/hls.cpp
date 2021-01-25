@@ -76,6 +76,12 @@ void HLSOutput::pushSample(GstSample *sample)
         {
             recentSegment->duration = buffer->pts - recentSegment->pts;
             recentSegment->finished = true;
+            if (recentSegment->partialSegments.size())
+            {
+                std::shared_ptr<HLSPartialSegment> recentPartialSegment = recentSegment->partialSegments.back();
+                recentPartialSegment->duration = buffer->pts - recentPartialSegment->pts;
+                recentPartialSegment->finished = true;
+            }
         }
         segment = std::make_shared<HLSSegment>();
         segment->pts = buffer->pts;
