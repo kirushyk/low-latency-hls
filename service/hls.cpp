@@ -161,6 +161,8 @@ std::string HLSOutput::getLowLatencyPlaylist() const
     {
         for (const auto &partialSegment: segment->partialSegments)
         {
+            if (partialSegment->finished)
+                continue;
             if (!partInfReported)
             {
                 ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_MAX_DURATION << std::endl;
