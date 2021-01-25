@@ -22,7 +22,7 @@ HLSSegment::HLSSegment()
         timeZone = g_time_zone_new_utc();
     }
     dateTime = g_date_time_new_now(timeZone);
-    lastPartialSegmentNumber = 0;
+    lastPartialSegmentNumber = 1;
 }
 
 HLSSegment::~HLSSegment()
@@ -84,7 +84,7 @@ void HLSOutput::pushSample(GstSample *sample)
     }
     if (recentPartialSegment)
     {
-        if (buffer->pts - recentPartialSegment->pts < PARTIAL_SEGMENT_MIN_DURATION)
+        if ((buffer->pts - recentPartialSegment->pts) < PARTIAL_SEGMENT_MIN_DURATION * GST_SECOND)
         {
             partialSegment = recentPartialSegment;
         }
@@ -166,7 +166,7 @@ std::string HLSOutput::getLowLatencyPlaylist() const
     {
         for (const auto &partialSegment: segment->partialSegments)
         {
-            if (partialSegment->finished)
+            if (!partialSegment->finished)
                 continue;
             if (!partInfReported)
             {
