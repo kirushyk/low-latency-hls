@@ -178,6 +178,7 @@ int main(int argc, char *argv[])
                 {
                     soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
                 }
+                std::cerr << "" << path << ", sent " << partialSegment->data.size() << " chunks" << std::endl;
                 soup_message_body_complete(msg->response_body);
             }
             else

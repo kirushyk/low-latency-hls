@@ -179,8 +179,21 @@ std::string HLSOutput::getLowLatencyPlaylist() const
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
     ss << "#EXT-X-VERSION:6" << std::endl;
     // ss << "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES" << std::endl;
-    ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
     bool partInfReported = false;
+    for (const auto& segment: segments)
+    {
+        for (const auto &partialSegment: segment->partialSegments)
+        {
+            ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_MAX_DURATION << std::endl;
+            partInfReported = true;
+            break;
+        }
+        if (partInfReported)
+        {
+            break;
+        }
+    }
+    ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
     bool dateTimeReported = false;
     for (const auto& segment: segments)
     {
@@ -188,11 +201,6 @@ std::string HLSOutput::getLowLatencyPlaylist() const
         {
             if (!partialSegment->finished)
                 continue;
-            if (!partInfReported)
-            {
-                ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_MAX_DURATION << std::endl;
-                partInfReported = true;
-            }
             ss << "#EXT-X-PART:DURATION=" << partialSegment->duration * 0.000000001;
             ss << ",URI=\"/api/partial/" << segment->number << "." << partialSegment->number << ".ts\"";
             if (partialSegment->independent)
