@@ -13,6 +13,7 @@
 #include "hls.hpp"
 
 #define APPLICATION_NAME "HLS Demo"
+#define PLAYLIST_CHUNK_SIZE 4096
 
 static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
 {
@@ -165,22 +166,49 @@ int main(int argc, char *argv[])
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
         soup_message_headers_append(msg->response_headers, "Content-Encoding", "gzip");
-
         z_stream zs;
         zs.zalloc = Z_NULL;
         zs.zfree = Z_NULL;
         zs.opaque = Z_NULL;
         zs.avail_in = (uInt)playlist.size();
         zs.next_in = (Bytef *)playlist.c_str();
-        const int CHUNK_SIZE = 4096;
-        char chunk[CHUNK_SIZE];
+        char chunk[PLAYLIST_CHUNK_SIZE];
         deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
         do
         {
-            zs.avail_out = (uInt)CHUNK_SIZE;
+            zs.avail_out = (uInt)PLAYLIST_CHUNK_SIZE;
             zs.next_out = (Bytef *)chunk;
             deflate(&zs, Z_FINISH);
-            int have = CHUNK_SIZE - zs.avail_out;
+            int have = PLAYLIST_CHUNK_SIZE - zs.avail_out;
+            soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, chunk, have);
+        }
+        while (zs.avail_out == 0);
+        deflateEnd(&zs);
+        soup_message_set_status(msg, SOUP_STATUS_OK);
+	    soup_message_body_complete(msg->response_body);
+    }, &hlsOutput, NULL);
+    soup_server_add_handler(http_server, "/api/lhls.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
+    {
+        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::string playlist = hlsOutput->getLowLatencyPlaylist();
+        soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
+        soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
+        soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
+        soup_message_headers_append(msg->response_headers, "Content-Encoding", "gzip");
+        z_stream zs;
+        zs.zalloc = Z_NULL;
+        zs.zfree = Z_NULL;
+        zs.opaque = Z_NULL;
+        zs.avail_in = (uInt)playlist.size();
+        zs.next_in = (Bytef *)playlist.c_str();
+        char chunk[PLAYLIST_CHUNK_SIZE];
+        deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
+        do
+        {
+            zs.avail_out = (uInt)PLAYLIST_CHUNK_SIZE;
+            zs.next_out = (Bytef *)chunk;
+            deflate(&zs, Z_FINISH);
+            int have = PLAYLIST_CHUNK_SIZE - zs.avail_out;
             soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, chunk, have);
         }
         while (zs.avail_out == 0);
