@@ -9,6 +9,7 @@ HLSPartialSegment::HLSPartialSegment()
     finished = false;
     duration = 0;
     pts = 0;
+    independent = false;
 }
 
 HLSSegment::HLSSegment()
@@ -44,13 +45,13 @@ void HLSOutput::pushSample(GstSample *sample)
     std::shared_ptr<HLSSegment> segment;
     
     GstBuffer *buffer = gst_sample_get_buffer(sample);
+    bool sampleContainsIDR = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
 
     std::shared_ptr<HLSSegment> recentSegment;
     if (segments.size())
     {
         recentSegment = segments.back();
         bool targetDurationSoon = (buffer->pts - recentSegment->pts) > ((SEGMENT_DURATION - 2) * GST_SECOND);
-        bool sampleContainsIDR = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
         if (!(targetDurationSoon && sampleContainsIDR))
         {
             segment = recentSegment;
@@ -99,6 +100,10 @@ void HLSOutput::pushSample(GstSample *sample)
         partialSegment->pts = buffer->pts;
         partialSegment->number = segment->lastPartialSegmentNumber++;
         segment->partialSegments.push_back(partialSegment);
+    }
+    if (sampleContainsIDR)
+    {
+        partialSegment->independent = true;
     }
 
     GstMapInfo mapInfo;
