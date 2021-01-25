@@ -33,6 +33,18 @@ HLSSegment::~HLSSegment()
     }
 }
 
+std::shared_ptr<HLSPartialSegment> HLSSegment::getPartialSegment(int number) const
+{
+    for (const auto& partialSegment: partialSegments)
+    {
+        if (partialSegment->number == number)
+        {
+            return partialSegment;
+        }
+    }
+    return std::shared_ptr<HLSPartialSegment>();
+}
+
 HLSOutput::HLSOutput()
 {
     lastIndex = 0;
@@ -112,6 +124,14 @@ void HLSOutput::pushSample(GstSample *sample)
     partialSegment->data.push_back(std::vector<std::uint8_t>(mapInfo.data, mapInfo.data + mapInfo.size));
     gst_buffer_unmap(buffer, &mapInfo);
     gst_sample_unref(sample);
+
+    for (auto &oldSegment: segments)
+    {
+        if ((buffer->pts - oldSegment->pts) > 3 * SEGMENT_DURATION * GST_SECOND)
+        {
+            oldSegment->partialSegments.clear();
+        }
+    }
 }
 
 std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
@@ -123,7 +143,7 @@ std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
             return segment;
         }
     }
-    return NULL;
+    return std::shared_ptr<HLSSegment>();
 }
 
 std::string HLSOutput::getPlaylist() const

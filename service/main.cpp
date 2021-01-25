@@ -158,6 +158,38 @@ int main(int argc, char *argv[])
             set_error_message(msg, SOUP_STATUS_NOT_FOUND);
         }
     }, &hlsOutput, NULL);
+    soup_server_add_handler(http_server, "/api/partial/", [](SoupServer *, SoupMessage *msg, const char *path, GHashTable *, SoupClientContext *, gpointer user_data)
+    {
+        int segmentNumber = 0;
+        int partialSegmentNumber = 0;
+        sscanf(path + 13, "%d.%d.ts", &segmentNumber, &partialSegmentNumber);
+        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(segmentNumber);
+        soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
+        soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
+        if (segment)
+        {
+            std::shared_ptr<HLSPartialSegment> partialSegment = segment->getPartialSegment(partialSegmentNumber);
+            if (partialSegment)
+            {
+                soup_message_headers_append(msg->response_headers, "Content-Type", "video/mp2t");
+                soup_message_set_status(msg, SOUP_STATUS_OK);
+                for (const auto &b: partialSegment->data)
+                {
+                    soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
+                }
+                soup_message_body_complete(msg->response_body);
+            }
+            else
+            {
+                set_error_message(msg, SOUP_STATUS_NOT_FOUND);
+            }
+        }
+        else
+        {
+            set_error_message(msg, SOUP_STATUS_NOT_FOUND);
+        }
+    }, &hlsOutput, NULL);
     soup_server_add_handler(http_server, "/api/plain.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);

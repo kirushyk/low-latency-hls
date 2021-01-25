@@ -21,7 +21,7 @@ struct HLSPartialSegment
     std::list<std::vector<std::uint8_t>> data;
 
     bool independent;
-    
+
     HLSPartialSegment();
 };
 
@@ -42,6 +42,8 @@ struct HLSSegment
     
     HLSSegment();
     ~HLSSegment();
+
+    std::shared_ptr<HLSPartialSegment> getPartialSegment(int number) const;
 };
 
 struct HLSOutput
