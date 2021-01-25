@@ -178,12 +178,13 @@ std::string HLSOutput::getLowLatencyPlaylist() const
     ss << "#EXTM3U" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
     ss << "#EXT-X-VERSION:6" << std::endl;
-    // ss << "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES" << std::endl;
+    ss << "#EXT-X-SERVER-CONTROL:PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3 << std::endl;
     bool partInfReported = false;
     for (const auto& segment: segments)
     {
         for (const auto &partialSegment: segment->partialSegments)
         {
+            (void)partialSegment;
             ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_MAX_DURATION << std::endl;
             partInfReported = true;
             break;
