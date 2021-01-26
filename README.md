@@ -1,5 +1,7 @@
-# RTSP to Low Latency HTTP
+# RTSP to Low Latency HLS
 
-Usage:
+This app takes RTSP input and produces low latency HLS output
+
+## Usage
 
     lhls-service <RTSP_URI>
