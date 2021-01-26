@@ -2,6 +2,11 @@
 #include <gst/video/video.h>
 #include <iostream>
 
+HLSOutput::Delegate::~Delegate()
+{
+
+}
+
 HLSOutput::HLSOutput()
 {
     lastIndex = 0;

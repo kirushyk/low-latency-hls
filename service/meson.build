@@ -5,6 +5,7 @@ lhls_service_sources = [
     'hls-segment.cpp',
     'hls.cpp',
     'file-endpoint.cpp',
+    'http-api.cpp',
     'main.cpp'
 ]
 
