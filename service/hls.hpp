@@ -19,6 +19,14 @@ struct HLSOutput: public RTSPInput::Delegate
 public:
     HLSOutput();
     virtual ~HLSOutput();
+    class Delegate
+    {
+    public:
+        virtual void onPartialSegment() = 0;
+        virtual void onSegment() = 0;
+        virtual ~Delegate();
+    };
+    std::weak_ptr<Delegate> delegate;
     virtual void onSample(GstSample *sample) override final;
     std::shared_ptr<HLSSegment> getSegment(int number) const;
     std::string getPlaylist() const;
