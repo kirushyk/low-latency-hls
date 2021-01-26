@@ -19,7 +19,7 @@ HTTPAPI::HTTPAPI(const int port)
     {
         int segmentNumber = 0;
         sscanf(path + 14, "%d.ts", &segmentNumber);
-        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI*>(user_data)->hlsOutput;
         std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(segmentNumber);
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
@@ -37,13 +37,13 @@ HTTPAPI::HTTPAPI(const int port)
         {
             set_error_message(msg, SOUP_STATUS_NOT_FOUND);
         }
-    }, hlsOutput.get(), NULL);
+    }, this, NULL);
     soup_server_add_handler(http_server, "/api/partial/", [](SoupServer *, SoupMessage *msg, const char *path, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         int segmentNumber = 0;
         int partialSegmentNumber = 0;
         sscanf(path + 13, "%d.%d.ts", &segmentNumber, &partialSegmentNumber);
-        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI*>(user_data)->hlsOutput;
         std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(segmentNumber);
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
@@ -72,10 +72,10 @@ HTTPAPI::HTTPAPI(const int port)
             std::cerr << "" << path << ", segment not found" << std::endl;
             set_error_message(msg, SOUP_STATUS_NOT_FOUND);
         }
-    }, hlsOutput.get(), NULL);
+    }, this, NULL);
     soup_server_add_handler(http_server, "/api/plain.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
     {
-        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI*>(user_data)->hlsOutput;
         std::string playlist = hlsOutput->getPlaylist();
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
@@ -101,10 +101,10 @@ HTTPAPI::HTTPAPI(const int port)
         deflateEnd(&zs);
         soup_message_set_status(msg, SOUP_STATUS_OK);
 	    soup_message_body_complete(msg->response_body);
-    }, hlsOutput.get(), NULL);
+    }, this, NULL);
     soup_server_add_handler(http_server, "/api/lhls.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
     {
-        HLSOutput *hlsOutput = reinterpret_cast<HLSOutput *>(user_data);
+        std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI*>(user_data)->hlsOutput;
         std::string playlist = hlsOutput->getLowLatencyPlaylist();
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
@@ -130,7 +130,7 @@ HTTPAPI::HTTPAPI(const int port)
         deflateEnd(&zs);
         soup_message_set_status(msg, SOUP_STATUS_OK);
 	    soup_message_body_complete(msg->response_body);
-    }, hlsOutput.get(), NULL);
+    }, this, NULL);
     soup_server_add_handler(http_server, "/ui", file_callback, NULL, NULL);
     soup_server_add_handler(http_server, "/", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
     {
@@ -142,7 +142,9 @@ HTTPAPI::HTTPAPI(const int port)
     if (soup_server_listen_all(http_server, port, static_cast<SoupServerListenOptions>(0), 0))
         g_print("server listening on port %d\n", port);
     else
+    {
         g_printerr("port %d could not be bound\n", port);
+    }
 }
 
 HTTPAPI::~HTTPAPI()
