@@ -10,15 +10,16 @@
 #include <vector>
 #include <cstdint>
 #include <gst/gst.h>
-#include "hlssegment.hpp"
+#include "hls-segment.hpp"
 
-struct HLSOutput
+struct HLSOutput: public RTSPInput::Delegate
 {
     int lastIndex, lastSegmentNumber, mediaSequenceNumber;
     std::list<std::shared_ptr<HLSSegment>> segments;
 public:
     HLSOutput();
-    void pushSample(GstSample *sample);
+    virtual ~HLSOutput();
+    virtual void onSample(GstSample *sample) override final;
     std::shared_ptr<HLSSegment> getSegment(int number) const;
     std::string getPlaylist() const;
     std::string getLowLatencyPlaylist() const;

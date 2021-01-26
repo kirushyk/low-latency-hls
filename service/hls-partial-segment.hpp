@@ -1,5 +1,5 @@
 #pragma once
-#include "hlsbasesegment.hpp"
+#include "hls-base-segment.hpp"
 
 struct HLSPartialSegment: HLSBaseSegment
 {

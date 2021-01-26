@@ -9,7 +9,12 @@ HLSOutput::HLSOutput()
     mediaSequenceNumber = 1;
 }
 
-void HLSOutput::pushSample(GstSample *sample)
+HLSOutput::~HLSOutput()
+{
+
+}
+
+void HLSOutput::onSample(GstSample *sample)
 {
     std::shared_ptr<HLSSegment> segment;
     

@@ -1,11 +1,17 @@
 lhls_service_sources = [
-    'file-endpoint.cpp',
-    'hlsbasesegment.cpp',
-    'hlspartialsegment.cpp',
-    'hlssegment.cpp',
+    'rtsp-input.cpp',
+    'hls-base-segment.cpp',
+    'hls-partial-segment.cpp',
+    'hls-segment.cpp',
     'hls.cpp',
+    'file-endpoint.cpp',
     'main.cpp'
 ]
+
+config = configuration_data()
+config.set_quoted('APPLICATION_NAME', 'RTSP-to-HLS Demo')
+config.set('PLAYLIST_CHUNK_SIZE', 4096)
+configure_file(output: 'config.h', configuration: config)
 
 executable('lhls-service',
     lhls_service_sources,
