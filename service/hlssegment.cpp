@@ -4,9 +4,6 @@ GTimeZone * HLSSegment::timeZone = NULL;
 
 HLSSegment::HLSSegment()
 {
-    finished = false;
-    duration = 0;
-    pts = 0;
     if (timeZone == NULL)
     {
         timeZone = g_time_zone_new_utc();

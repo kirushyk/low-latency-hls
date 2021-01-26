@@ -1,9 +1,7 @@
 #include "hlspartialsegment.hpp"
 
-HLSPartialSegment::HLSPartialSegment()
+HLSPartialSegment::HLSPartialSegment():
+    independent(false)
 {
-    finished = false;
-    duration = 0;
-    pts = 0;
-    independent = false;
+    
 }

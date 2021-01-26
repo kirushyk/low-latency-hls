@@ -1,9 +1,8 @@
 #pragma once
 #include <list>
 #include <vector>
-#include <cstdint>
 #include <memory>
-#include <gst/gst.h>
+#include <glib.h>
 #include "hlspartialsegment.hpp"
 
 struct HLSSegment: HLSBaseSegment
