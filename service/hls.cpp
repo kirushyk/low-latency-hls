@@ -2,49 +2,6 @@
 #include <gst/video/video.h>
 #include <iostream>
 
-GTimeZone * HLSSegment::timeZone = NULL;
-
-HLSPartialSegment::HLSPartialSegment()
-{
-    finished = false;
-    duration = 0;
-    pts = 0;
-    independent = false;
-}
-
-HLSSegment::HLSSegment()
-{
-    finished = false;
-    duration = 0;
-    pts = 0;
-    if (timeZone == NULL)
-    {
-        timeZone = g_time_zone_new_utc();
-    }
-    dateTime = g_date_time_new_now(timeZone);
-    lastPartialSegmentNumber = 1;
-}
-
-HLSSegment::~HLSSegment()
-{
-    if (dateTime)
-    {
-        g_date_time_unref(dateTime);
-    }
-}
-
-std::shared_ptr<HLSPartialSegment> HLSSegment::getPartialSegment(int number) const
-{
-    for (const auto& partialSegment: partialSegments)
-    {
-        if (partialSegment->number == number)
-        {
-            return partialSegment;
-        }
-    }
-    return std::shared_ptr<HLSPartialSegment>();
-}
-
 HLSOutput::HLSOutput()
 {
     lastIndex = 0;

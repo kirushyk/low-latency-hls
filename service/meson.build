@@ -1,5 +1,7 @@
 lhls_service_sources = [
     'file-endpoint.cpp',
+    'hlspartialsegment.cpp',
+    'hlssegment.cpp',
     'hls.cpp',
     'main.cpp'
 ]
