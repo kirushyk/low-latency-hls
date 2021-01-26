@@ -183,11 +183,13 @@ int main(int argc, char *argv[])
             }
             else
             {
+                std::cerr << "" << path << ", partial segment not found" << std::endl;
                 set_error_message(msg, SOUP_STATUS_NOT_FOUND);
             }
         }
         else
         {
+            std::cerr << "" << path << ", segment not found" << std::endl;
             set_error_message(msg, SOUP_STATUS_NOT_FOUND);
         }
     }, &hlsOutput, NULL);
