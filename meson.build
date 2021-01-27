@@ -18,6 +18,7 @@ lhls_service_sources = [
 config = configuration_data()
 config.set_quoted('APPLICATION_NAME', 'RTSP-to-HLS Demo')
 config.set('PLAYLIST_CHUNK_SIZE', 4096)
+config.set_quoted('UI_SOURCE_PATH', meson.current_source_dir() / 'ui')
 configure_file(output: 'config.h', configuration: config)
 
 executable('rtsp2hls',
@@ -30,5 +31,3 @@ executable('rtsp2hls',
         dependency('gstreamer-video-1.0')
     ]
 )
-
-subdir('ui')
