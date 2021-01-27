@@ -84,7 +84,7 @@ void HTTPAPI::Private::onSegment()
 
                 soup_message_set_status(request->msg, SOUP_STATUS_OK);
                 soup_message_body_complete(request->msg->response_body);
-                
+
                 soup_server_unpause_message(http_server, request->msg);
 
                 std::cerr << "We have segment " << request->mediaSequenceNumber <<
@@ -205,6 +205,12 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             if (_HLS_msn)
             {
                 requestedMediaSequenceNumber = std::atoi(_HLS_msn);
+                if (hlsOutput->msnWrong(requestedMediaSequenceNumber))
+                {
+                    soup_message_set_status(msg, SOUP_STATUS_BAD_REQUEST);
+                    soup_message_body_complete(msg->response_body);
+                    return;
+                }
                 if (_HLS_part)
                 {
                     requestedPartIndex = std::atoi(_HLS_part);
@@ -221,7 +227,16 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             }
             else
             {
-                std::cerr << "Blocking playlist response..." << std::endl;
+                std::cerr << "Blocking playlist response...";
+                if (_HLS_msn)
+                {
+                    std::cerr << "_HLS_msn=" << _HLS_msn;
+                }
+                if (_HLS_part)
+                {
+                    std::cerr << "_HLS_part=" << _HLS_part;
+                }
+                std::cerr << std::endl;
                 soup_server_pause_message(server, msg);
                 auto playlistRequest = std::make_shared<PlaylistRequest>();
                 playlistRequest->msg = msg;

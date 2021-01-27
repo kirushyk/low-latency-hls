@@ -210,6 +210,11 @@ std::string HLSOutput::getPlaylist(bool lowLatency) const
     }
     return ss.str();
 }
+    
+bool HLSOutput::msnWrong(int msn) const
+{
+    return (msn - priv->mediaSequenceNumber) > 2;
+}
 
 bool HLSOutput::segmentReady(int msn) const
 {
@@ -220,11 +225,8 @@ bool HLSOutput::partialSegmentReady(int msn, int partIndex) const
 {
     if (priv->segments.size())
     {
-        return (msn < priv->mediaSequenceNumber) &&
-            ((partIndex + 1) < priv->segments.back()->number);
+        return segmentReady(msn + 1) ||
+            ((msn < priv->mediaSequenceNumber) && ((partIndex + 1) < priv->segments.back()->number));
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
