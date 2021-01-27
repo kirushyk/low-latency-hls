@@ -4,7 +4,7 @@
 #include <memory>
 #include <glib.h>
 #include "rtsp-input.hpp"
-#include "hls-partial-segment.hpp"
+#include "partial-segment.hpp"
 
 struct HLSSegment: HLSBaseSegment
 {

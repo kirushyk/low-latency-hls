@@ -1,6 +1,6 @@
 #pragma once
 #include <libsoup/soup.h>
-#include "hls.hpp"
+#include "../hls/output.hpp"
 
 class HTTPAPI: public HLSOutput::Delegate
 {

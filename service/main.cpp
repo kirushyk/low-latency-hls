@@ -9,7 +9,7 @@
 #include <gst/gst.h>
 #include "rtsp-input.hpp"
 #include "http/api.hpp"
-#include "hls.hpp"
+#include "hls/output.hpp"
 
 int main(int argc, char *argv[])
 {

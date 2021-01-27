@@ -1,9 +1,9 @@
 lhls_service_sources = [
     'rtsp-input.cpp',
-    'hls-base-segment.cpp',
-    'hls-partial-segment.cpp',
-    'hls-segment.cpp',
-    'hls.cpp',
+    'hls' / 'base-segment.cpp',
+    'hls' / 'partial-segment.cpp',
+    'hls' / 'segment.cpp',
+    'hls' / 'output.cpp',
     'http' / 'file-endpoint.cpp',
     'http' / 'api.cpp',
     'main.cpp'

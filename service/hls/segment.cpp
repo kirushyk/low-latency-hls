@@ -1,4 +1,4 @@
-#include "hls-segment.hpp"
+#include "segment.hpp"
 
 GTimeZone * HLSSegment::timeZone = NULL;
 

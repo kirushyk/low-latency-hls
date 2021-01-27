@@ -10,7 +10,7 @@
 #include <vector>
 #include <cstdint>
 #include <gst/gst.h>
-#include "hls-segment.hpp"
+#include "segment.hpp"
 
 struct HLSOutput: public RTSPInput::Delegate
 {
