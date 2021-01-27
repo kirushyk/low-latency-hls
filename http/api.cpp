@@ -123,7 +123,7 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
         soup_message_set_status(msg, SOUP_STATUS_OK);
 	    soup_message_body_complete(msg->response_body);
     }, priv.get(), NULL);
-    soup_server_add_handler(priv->http_server, "/api/lhls.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
+    soup_server_add_handler(priv->http_server, "/api/lhls.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *query, SoupClientContext *, gpointer user_data)
     {
         std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI::Private *>(user_data)->hlsOutput;
         std::string playlist = hlsOutput->getPlaylist(true);
@@ -131,6 +131,17 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
         soup_message_headers_append(msg->response_headers, "Content-Encoding", "gzip");
+        const gchar *_HLS_msn = NULL;
+        const gchar *_HLS_part = NULL;
+        if (query)
+        {
+            _HLS_msn = (const gchar *)g_hash_table_lookup(query, "_HLS_msn");
+            _HLS_part = (const gchar *)g_hash_table_lookup(query, "_HLS_part");
+            if (_HLS_msn && _HLS_part)
+            {
+                std::cerr << "_HLS_msn=" << _HLS_msn << "_HLS_part=" << _HLS_part << std::endl;
+            }
+        }
         z_stream zs;
         zs.zalloc = Z_NULL;
         zs.zfree = Z_NULL;
