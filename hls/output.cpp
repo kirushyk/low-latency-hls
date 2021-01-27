@@ -2,12 +2,18 @@
 #include <iostream>
 #include <gst/video/video.h>
 
+struct HLSOutput::Private
+{
+
+};
+
 HLSOutput::Delegate::~Delegate()
 {
 
 }
 
-HLSOutput::HLSOutput()
+HLSOutput::HLSOutput():
+    priv(std::make_shared<Private>())
 {
     lastIndex = 0;
     lastSegmentNumber = 1;

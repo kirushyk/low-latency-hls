@@ -13,7 +13,7 @@
 #include "segment.hpp"
 #include "../input/rtsp-input.hpp"
 
-struct HLSOutput: public RTSPInput::Delegate
+class HLSOutput: public RTSPInput::Delegate
 {
     int lastIndex, lastSegmentNumber, mediaSequenceNumber;
     std::list<std::shared_ptr<HLSSegment>> segments;
@@ -32,4 +32,7 @@ public:
     std::shared_ptr<HLSSegment> getSegment(int number) const;
     std::string getPlaylist() const;
     std::string getLowLatencyPlaylist() const;
+    struct Private;
+private:
+    std::shared_ptr<Private> priv;
 };
