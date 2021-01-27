@@ -1,14 +1,14 @@
 #pragma once
+#include <memory>
 #include <libsoup/soup.h>
 #include "../hls/output.hpp"
 
-class HTTPAPI: public HLSOutput::Delegate
+class HTTPAPI
 {
-    SoupServer *http_server;
 public:
-    HTTPAPI(const int port);
+    HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput);
     virtual ~HTTPAPI();
-    virtual void onPartialSegment() override final;
-    virtual void onSegment() override final;
-    std::shared_ptr<HLSOutput> hlsOutput;
+private:
+    struct Private;
+    std::shared_ptr<Private> priv;
 };
