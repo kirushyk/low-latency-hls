@@ -21,7 +21,7 @@ HLSOutput::HLSOutput():
 {
     priv->lastIndex = 0;
     priv->lastSegmentNumber = 1;
-    priv->mediaSequenceNumber = 1;
+    priv->mediaSequenceNumber = 0;
 }
 
 HLSOutput::~HLSOutput()
