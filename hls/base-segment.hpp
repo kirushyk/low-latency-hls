@@ -1,7 +1,7 @@
 #pragma once
+#include <cstdint>
 #include <list>
 #include <vector>
-#include <cstdint>
 #include <gst/gst.h>
 
 struct HLSBaseSegment

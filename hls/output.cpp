@@ -1,6 +1,6 @@
 #include "output.hpp"
-#include <gst/video/video.h>
 #include <iostream>
+#include <gst/video/video.h>
 
 HLSOutput::Delegate::~Delegate()
 {

@@ -1,6 +1,5 @@
-
-#include "file-endpoint.hpp"
 #include "config.h"
+#include "file-endpoint.hpp"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

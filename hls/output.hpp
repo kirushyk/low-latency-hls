@@ -3,12 +3,12 @@
 #define SEGMENT_DURATION 6
 #define PARTIAL_SEGMENT_MAX_DURATION 0.3
 #define PARTIAL_SEGMENT_MIN_DURATION 0.2
+#include <cstdint>
 #include <sstream>
 #include <memory>
 #include <list>
-#include <glib.h>
 #include <vector>
-#include <cstdint>
+#include <glib.h>
 #include <gst/gst.h>
 #include "segment.hpp"
 #include "../input/rtsp-input.hpp"
