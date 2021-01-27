@@ -20,7 +20,6 @@ int main(int argc, char *argv[])
     }
 
     std::shared_ptr<HLSOutput> hlsOutput = std::make_shared<HLSOutput>();
-
     RTSPInput rtspInput(argv[1], hlsOutput);
     HTTPAPI httpAPI(8080, hlsOutput);
 

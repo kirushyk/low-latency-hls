@@ -23,7 +23,7 @@ void HTTPAPI::Private::onSegment()
 }
 
 HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
-    priv(std::shared_ptr<Private>())
+    priv(std::make_shared<Private>())
 {
     priv->hlsOutput = hlsOutput;
 
