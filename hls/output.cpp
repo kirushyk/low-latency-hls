@@ -6,7 +6,7 @@
 
 struct HLSOutput::Private
 {
-    int lastIndex, lastSegmentNumber, mediaSequenceNumber;
+    int lastIndex, mediaSequenceNumber;
     std::list<std::shared_ptr<HLSSegment>> segments;
     std::weak_ptr<Delegate> delegate;
 };
@@ -20,7 +20,6 @@ HLSOutput::HLSOutput():
     priv(std::make_shared<Private>())
 {
     priv->lastIndex = 0;
-    priv->lastSegmentNumber = 1;
     priv->mediaSequenceNumber = 0;
 }
 
@@ -62,11 +61,10 @@ void HLSOutput::onSample(GstSample *sample)
         }
         segment = std::make_shared<HLSSegment>();
         segment->pts = buffer->pts;
-        segment->number = priv->lastSegmentNumber++;
+        segment->number = priv->mediaSequenceNumber++;
         priv->segments.push_back(segment);
         if (priv->segments.size() > SEGMENTS_COUNT)
         {
-            priv->mediaSequenceNumber++;
             priv->segments.pop_front();
         }
     }
@@ -154,10 +152,15 @@ std::string HLSOutput::getPlaylist(bool lowLatency) const
             }
         }
     }
-    ss << "#EXT-X-MEDIA-SEQUENCE:" << priv->mediaSequenceNumber << std::endl;
+    bool msnReported = false;
     bool dateTimeReported = false;
     for (const auto& segment: priv->segments)
     {
+        if (!msnReported)
+        {
+            ss << "#EXT-X-MEDIA-SEQUENCE:" << segment->number << std::endl;
+            msnReported = true;
+        }
         if (lowLatency) for (const auto &partialSegment: segment->partialSegments)
         {
             if (partialSegment->finished)
