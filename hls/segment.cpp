@@ -9,7 +9,7 @@ HLSSegment::HLSSegment()
         timeZone = g_time_zone_new_utc();
     }
     dateTime = g_date_time_new_now(timeZone);
-    lastPartialSegmentNumber = 1;
+    lastPartialSegmentNumber = 0;
 }
 
 HLSSegment::~HLSSegment()
