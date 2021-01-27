@@ -140,10 +140,12 @@ HTTPAPI::HTTPAPI(const int port)
         soup_message_set_status_full(msg, SOUP_STATUS_MOVED_PERMANENTLY, phrase);
     }, NULL, NULL);
     if (soup_server_listen_all(http_server, port, static_cast<SoupServerListenOptions>(0), 0))
-        g_print("server listening on port %d\n", port);
+    {
+        std::cout << "server listening on port " << port << std::endl;
+    }
     else
     {
-        g_printerr("port %d could not be bound\n", port);
+        std::cerr << "port " << port << " could not be bound" << std::endl;
     }
 }
 

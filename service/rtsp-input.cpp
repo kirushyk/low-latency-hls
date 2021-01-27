@@ -1,5 +1,6 @@
 #include "config.h"
 #include "rtsp-input.hpp"
+#include <iostream>
 #include <gst/app/gstappsink.h>
 
 RTSPInput::Delegate::~Delegate()
@@ -43,9 +44,6 @@ static void rtspsrc_pad_added(GstElement *src, GstPad *new_pad, GstElement *rtph
     const gchar *new_pad_type = NULL;
     const gchar *new_pad_media = NULL;
 
-    g_print("Received new pad '%s' from '%s':\n", GST_PAD_NAME(new_pad), GST_ELEMENT_NAME(src));
-
-    /* Check the new pad's type */
     new_pad_caps = gst_pad_get_current_caps(new_pad);
     new_pad_struct = gst_caps_get_structure(new_pad_caps, 0);
     new_pad_type = gst_structure_get_name(new_pad_struct);
@@ -53,21 +51,18 @@ static void rtspsrc_pad_added(GstElement *src, GstPad *new_pad, GstElement *rtph
     if (!g_str_has_prefix(new_pad_type, "application/x-rtp")
         || !g_str_equal(new_pad_media, "video"))
     {
-        g_print("It has type '%s' which is not RTP stream OR media '%s' which is not video. "
-                "Ignoring.\n",
-                new_pad_type, new_pad_media);
+        std::cerr << "Received pad of type \"" << new_pad_type <<
+            "\" with media \"" << new_pad_media <<"\" which is RTP stream with video." << std::endl;
         goto exit;
     }
 
-    /* Attempt the link */
     ret = gst_pad_link(new_pad, sinkPad);
     if (GST_PAD_LINK_FAILED(ret))
     {
-        g_print("Type is '%s' but link failed.\n", new_pad_type);
+        std::cerr << "Type is \"" << new_pad_type << "\" but link failed." << std::endl;
     }
 
 exit:
-    /* Unreference the new pad's caps, if we got them */
     if (new_pad_caps != NULL)
     {
         gst_caps_unref(new_pad_caps);
