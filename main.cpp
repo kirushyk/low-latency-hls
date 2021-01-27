@@ -20,8 +20,8 @@ int main(int argc, char *argv[])
     }
 
     std::shared_ptr<HLSOutput> hlsOutput = std::make_shared<HLSOutput>();
-    RTSPInput rtspInput(argv[1], hlsOutput);
-    HTTPAPI httpAPI(8080, hlsOutput);
+    std::shared_ptr<RTSPInput> rtspInput = std::make_shared<RTSPInput>(argv[1], hlsOutput);
+    std::shared_ptr<HTTPAPI> httpAPI = std::make_shared<HTTPAPI>(8080, hlsOutput);
 
     GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(main_loop);

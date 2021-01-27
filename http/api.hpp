@@ -1,6 +1,5 @@
 #pragma once
 #include <memory>
-#include <libsoup/soup.h>
 #include "../hls/output.hpp"
 
 class HTTPAPI
