@@ -97,7 +97,7 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
     soup_server_add_handler(priv->http_server, "/api/plain.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI::Private *>(user_data)->hlsOutput;
-        std::string playlist = hlsOutput->getPlaylist();
+        std::string playlist = hlsOutput->getPlaylist(false);
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
@@ -126,7 +126,7 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
     soup_server_add_handler(priv->http_server, "/api/lhls.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI::Private *>(user_data)->hlsOutput;
-        std::string playlist = hlsOutput->getLowLatencyPlaylist();
+        std::string playlist = hlsOutput->getPlaylist(true);
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");

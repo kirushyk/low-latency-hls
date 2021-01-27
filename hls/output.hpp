@@ -24,8 +24,7 @@ public:
     };
     virtual void onSample(GstSample *sample) override final;
     std::shared_ptr<HLSSegment> getSegment(int number) const;
-    std::string getPlaylist() const;
-    std::string getLowLatencyPlaylist() const;
+    std::string getPlaylist(bool lowLatency) const;
     struct Private;
 private:
     std::shared_ptr<Private> priv;

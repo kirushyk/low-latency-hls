@@ -129,59 +129,36 @@ std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
     return std::shared_ptr<HLSSegment>();
 }
 
-std::string HLSOutput::getPlaylist() const
+std::string HLSOutput::getPlaylist(bool lowLatency) const
 {
     std::stringstream ss;
     ss << "#EXTM3U" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
-    ss << "#EXT-X-VERSION:3" << std::endl;
-    ss << "#EXT-X-MEDIA-SEQUENCE:" << priv->mediaSequenceNumber << std::endl;
-    bool dateTimeReported = false;
-    for (const auto& segment: priv->segments)
+    ss << "#EXT-X-VERSION:" << (lowLatency ? 6: 3) << std::endl;
+    if (lowLatency)
     {
-        if (segment->finished)
+        ss << "#EXT-X-SERVER-CONTROL:PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3 << std::endl;
+        bool partInfReported = false;
+        for (const auto& segment: priv->segments)
         {
-            if (!dateTimeReported)
+            for (const auto &partialSegment: segment->partialSegments)
             {
-                gchar *formattedDateTime = g_date_time_format_iso8601(segment->dateTime);
-                ss << "#EXT-X-PROGRAM-DATE-TIME:" << formattedDateTime << std::endl;
-                g_free(formattedDateTime);
-                dateTimeReported = true;
+                (void)partialSegment;
+                ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_MAX_DURATION << std::endl;
+                partInfReported = true;
+                break;
             }
-            ss << "#EXTINF:" << segment->duration * 0.000000001 << "," << std::endl;
-            ss << "/api/segments/" << segment->number << ".ts" << std::endl;
-        }
-    }
-    return ss.str();
-}
-
-std::string HLSOutput::getLowLatencyPlaylist() const
-{
-    std::stringstream ss;
-    ss << "#EXTM3U" << std::endl;
-    ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
-    ss << "#EXT-X-VERSION:6" << std::endl;
-    ss << "#EXT-X-SERVER-CONTROL:PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3 << std::endl;
-    bool partInfReported = false;
-    for (const auto& segment: priv->segments)
-    {
-        for (const auto &partialSegment: segment->partialSegments)
-        {
-            (void)partialSegment;
-            ss << "#EXT-X-PART-INF:PART-TARGET=" << PARTIAL_SEGMENT_MAX_DURATION << std::endl;
-            partInfReported = true;
-            break;
-        }
-        if (partInfReported)
-        {
-            break;
+            if (partInfReported)
+            {
+                break;
+            }
         }
     }
     ss << "#EXT-X-MEDIA-SEQUENCE:" << priv->mediaSequenceNumber << std::endl;
     bool dateTimeReported = false;
     for (const auto& segment: priv->segments)
     {
-        for (const auto &partialSegment: segment->partialSegments)
+        if (lowLatency) for (const auto &partialSegment: segment->partialSegments)
         {
             if (partialSegment->finished)
             {
@@ -213,4 +190,3 @@ std::string HLSOutput::getLowLatencyPlaylist() const
     }
     return ss.str();
 }
-
