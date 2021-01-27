@@ -1,5 +1,5 @@
 lhls_service_sources = [
-    'rtsp-input.cpp',
+    'input' / 'rtsp-input.cpp',
     'hls' / 'base-segment.cpp',
     'hls' / 'partial-segment.cpp',
     'hls' / 'segment.cpp',

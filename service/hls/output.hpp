@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <gst/gst.h>
 #include "segment.hpp"
+#include "../input/rtsp-input.hpp"
 
 struct HLSOutput: public RTSPInput::Delegate
 {

@@ -3,7 +3,6 @@
 #include <vector>
 #include <memory>
 #include <glib.h>
-#include "rtsp-input.hpp"
 #include "partial-segment.hpp"
 
 struct HLSSegment: HLSBaseSegment
