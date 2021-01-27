@@ -6,17 +6,12 @@
 #include <cstdint>
 #include <sstream>
 #include <memory>
-#include <list>
-#include <vector>
-#include <glib.h>
 #include <gst/gst.h>
 #include "segment.hpp"
 #include "../input/rtsp-input.hpp"
 
 class HLSOutput: public RTSPInput::Delegate
 {
-    int lastIndex, lastSegmentNumber, mediaSequenceNumber;
-    std::list<std::shared_ptr<HLSSegment>> segments;
 public:
     HLSOutput();
     virtual ~HLSOutput();
@@ -27,7 +22,6 @@ public:
         virtual void onSegment() = 0;
         virtual ~Delegate();
     };
-    std::weak_ptr<Delegate> delegate;
     virtual void onSample(GstSample *sample) override final;
     std::shared_ptr<HLSSegment> getSegment(int number) const;
     std::string getPlaylist() const;

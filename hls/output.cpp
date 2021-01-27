@@ -1,10 +1,14 @@
 #include "output.hpp"
+#include <list>
+#include <vector>
 #include <iostream>
 #include <gst/video/video.h>
 
 struct HLSOutput::Private
 {
-
+    int lastIndex, lastSegmentNumber, mediaSequenceNumber;
+    std::list<std::shared_ptr<HLSSegment>> segments;
+    std::weak_ptr<Delegate> delegate;
 };
 
 HLSOutput::Delegate::~Delegate()
@@ -15,9 +19,9 @@ HLSOutput::Delegate::~Delegate()
 HLSOutput::HLSOutput():
     priv(std::make_shared<Private>())
 {
-    lastIndex = 0;
-    lastSegmentNumber = 1;
-    mediaSequenceNumber = 1;
+    priv->lastIndex = 0;
+    priv->lastSegmentNumber = 1;
+    priv->mediaSequenceNumber = 1;
 }
 
 HLSOutput::~HLSOutput()
@@ -33,9 +37,9 @@ void HLSOutput::onSample(GstSample *sample)
     bool sampleContainsIDR = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
 
     std::shared_ptr<HLSSegment> recentSegment;
-    if (segments.size())
+    if (priv->segments.size())
     {
-        recentSegment = segments.back();
+        recentSegment = priv->segments.back();
         bool targetDurationSoon = (buffer->pts - recentSegment->pts) > ((SEGMENT_DURATION - 2) * GST_SECOND);
         if (!(targetDurationSoon && sampleContainsIDR))
         {
@@ -58,12 +62,12 @@ void HLSOutput::onSample(GstSample *sample)
         }
         segment = std::make_shared<HLSSegment>();
         segment->pts = buffer->pts;
-        segment->number = lastSegmentNumber++;
-        segments.push_back(segment);
-        if (segments.size() > SEGMENTS_COUNT)
+        segment->number = priv->lastSegmentNumber++;
+        priv->segments.push_back(segment);
+        if (priv->segments.size() > SEGMENTS_COUNT)
         {
-            mediaSequenceNumber++;
-            segments.pop_front();
+            priv->mediaSequenceNumber++;
+            priv->segments.pop_front();
         }
     }
 
@@ -104,7 +108,7 @@ void HLSOutput::onSample(GstSample *sample)
     gst_buffer_unmap(buffer, &mapInfo);
     gst_sample_unref(sample);
 
-    for (auto &oldSegment: segments)
+    for (auto &oldSegment: priv->segments)
     {
         if ((buffer->pts - oldSegment->pts) > 3 * SEGMENT_DURATION * GST_SECOND)
         {
@@ -115,7 +119,7 @@ void HLSOutput::onSample(GstSample *sample)
 
 std::shared_ptr<HLSSegment> HLSOutput::getSegment(int number) const
 {
-    for (const auto& segment: segments)
+    for (const auto& segment: priv->segments)
     {
         if (segment->number == number)
         {
@@ -131,9 +135,9 @@ std::string HLSOutput::getPlaylist() const
     ss << "#EXTM3U" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
     ss << "#EXT-X-VERSION:3" << std::endl;
-    ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
+    ss << "#EXT-X-MEDIA-SEQUENCE:" << priv->mediaSequenceNumber << std::endl;
     bool dateTimeReported = false;
-    for (const auto& segment: segments)
+    for (const auto& segment: priv->segments)
     {
         if (segment->finished)
         {
@@ -159,7 +163,7 @@ std::string HLSOutput::getLowLatencyPlaylist() const
     ss << "#EXT-X-VERSION:6" << std::endl;
     ss << "#EXT-X-SERVER-CONTROL:PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3 << std::endl;
     bool partInfReported = false;
-    for (const auto& segment: segments)
+    for (const auto& segment: priv->segments)
     {
         for (const auto &partialSegment: segment->partialSegments)
         {
@@ -173,9 +177,9 @@ std::string HLSOutput::getLowLatencyPlaylist() const
             break;
         }
     }
-    ss << "#EXT-X-MEDIA-SEQUENCE:" << mediaSequenceNumber << std::endl;
+    ss << "#EXT-X-MEDIA-SEQUENCE:" << priv->mediaSequenceNumber << std::endl;
     bool dateTimeReported = false;
-    for (const auto& segment: segments)
+    for (const auto& segment: priv->segments)
     {
         for (const auto &partialSegment: segment->partialSegments)
         {

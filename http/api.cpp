@@ -26,7 +26,6 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
     priv(std::shared_ptr<Private>())
 {
     priv->hlsOutput = hlsOutput;
-    hlsOutput->delegate = priv;
 
     priv->http_server = soup_server_new(SOUP_SERVER_SERVER_HEADER, APPLICATION_NAME, NULL);
     soup_server_add_handler(priv->http_server, NULL, [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer)
