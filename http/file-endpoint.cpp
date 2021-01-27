@@ -1,6 +1,6 @@
 
 #include "file-endpoint.hpp"
-#include "../ui/ui-config.h"
+#include "ui/ui-config.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
