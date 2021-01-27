@@ -79,13 +79,13 @@ void HTTPAPI::Private::onSegment()
         {
             if (hlsOutput->segmentReady(request->mediaSequenceNumber))
             {
-                soup_server_unpause_message(http_server, request->msg);
-
                 std::string playlist = hlsOutput->getPlaylist(true);
                 message_body_append_compressed_text(request->msg->response_body, playlist);
 
                 soup_message_set_status(request->msg, SOUP_STATUS_OK);
                 soup_message_body_complete(request->msg->response_body);
+                
+                soup_server_unpause_message(http_server, request->msg);
 
                 std::cerr << "We have segment " << request->mediaSequenceNumber <<
                     ", unpausing blocked playlist request" << std::endl;
