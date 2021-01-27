@@ -134,10 +134,10 @@ std::string HLSOutput::getPlaylist(bool lowLatency) const
     std::stringstream ss;
     ss << "#EXTM3U" << std::endl;
     ss << "#EXT-X-TARGETDURATION:" << SEGMENT_DURATION << std::endl;
-    ss << "#EXT-X-VERSION:" << (lowLatency ? 6: 3) << std::endl;
+    ss << "#EXT-X-VERSION:" << (lowLatency ? 6 : 3) << std::endl;
     if (lowLatency)
     {
-        ss << "#EXT-X-SERVER-CONTROL:PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3 << std::endl;
+        ss << "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3 << std::endl;
         bool partInfReported = false;
         for (const auto& segment: priv->segments)
         {
