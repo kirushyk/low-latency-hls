@@ -3,6 +3,12 @@
 #include <iostream>
 #include <gst/app/gstappsink.h>
 
+struct RTSPInput::Private
+{
+    std::weak_ptr<Delegate> delegate;
+    GstElement *pipeline;
+};
+
 RTSPInput::Delegate::~Delegate()
 {
 
@@ -23,10 +29,10 @@ static gboolean on_message(GstBus *bus, GstMessage *message, gpointer user_data)
 
 static GstFlowReturn tssink_new_sample(GstAppSink *appsink, gpointer user_data)
 {
-    RTSPInput *rtspInput = reinterpret_cast<RTSPInput *>(user_data);
+    RTSPInput::Private *priv = reinterpret_cast<RTSPInput::Private *>(user_data);
     if (GstSample *sample = gst_app_sink_pull_sample(appsink))
     {
-        if (auto delegate = rtspInput->delegate.lock())
+        if (auto delegate = priv->delegate.lock())
         {
             delegate->onSample(sample);
         }
@@ -69,10 +75,12 @@ exit:
     }
 }
 
-RTSPInput::RTSPInput(const char *url)
+RTSPInput::RTSPInput(const char *url, std::shared_ptr<Delegate> delegate):
+    priv(std::make_shared<Private>())
 {
     gst_init(NULL, NULL);
-    pipeline = gst_pipeline_new(NULL);
+    priv->pipeline = gst_pipeline_new(NULL);
+    priv->delegate = delegate;
     
     GstElement *rtspsrc = gst_element_factory_make("rtspsrc", NULL);
     g_object_set(rtspsrc, "location", url, "user-agent", APPLICATION_NAME, NULL);
@@ -88,23 +96,23 @@ RTSPInput::RTSPInput(const char *url)
     
     GstElement *tssink = gst_element_factory_make("appsink", NULL);
     g_object_set(tssink, "emit-signals", TRUE, "sync", FALSE, NULL);
-    g_signal_connect(tssink, "new-sample", G_CALLBACK(tssink_new_sample), this);
+    g_signal_connect(tssink, "new-sample", G_CALLBACK(tssink_new_sample), priv.get());
 
-    gst_bin_add_many(GST_BIN(pipeline), rtspsrc, rtph264depay, h264parse, h264tee, NULL);
+    gst_bin_add_many(GST_BIN(priv->pipeline), rtspsrc, rtph264depay, h264parse, h264tee, NULL);
     gst_element_link_many(rtph264depay, h264parse, h264tee, NULL);
-    gst_bin_add_many(GST_BIN(pipeline), tsqueue, tsmux, tsparse, tssink, NULL);
+    gst_bin_add_many(GST_BIN(priv->pipeline), tsqueue, tsmux, tsparse, tssink, NULL);
     gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(tsqueue, "sink"));
     gst_element_link_many(tsqueue, tsmux, tsparse, tssink, NULL);
     
-    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    gst_element_set_state(priv->pipeline, GST_STATE_PLAYING);
     
-    GstBus *bus = gst_element_get_bus(pipeline);
+    GstBus *bus = gst_element_get_bus(priv->pipeline);
     gst_bus_add_watch(bus, on_message, this);
     gst_object_unref(bus);
 }
 
 RTSPInput::~RTSPInput()
 {
-    gst_element_set_state(pipeline, GST_STATE_NULL);
-    gst_object_unref(pipeline);
+    gst_element_set_state(priv->pipeline, GST_STATE_NULL);
+    gst_object_unref(priv->pipeline);
 }
