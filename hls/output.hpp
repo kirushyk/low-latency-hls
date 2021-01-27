@@ -22,9 +22,12 @@ public:
         virtual void onSegment() = 0;
         virtual ~Delegate();
     };
+    void setDelegate(std::shared_ptr<Delegate>);
     virtual void onSample(GstSample *sample) override final;
     std::shared_ptr<HLSSegment> getSegment(int number) const;
     std::string getPlaylist(bool lowLatency) const;
+    bool segmentReady(int msn) const;
+    bool partialSegmentReady(int msn, int partIndex) const;
     struct Private;
 private:
     std::shared_ptr<Private> priv;

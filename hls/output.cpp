@@ -28,6 +28,11 @@ HLSOutput::~HLSOutput()
 
 }
 
+void HLSOutput::setDelegate(std::shared_ptr<Delegate> delegate)
+{
+    priv->delegate = delegate;
+}
+
 void HLSOutput::onSample(GstSample *sample)
 {
     std::shared_ptr<HLSSegment> segment;
@@ -57,6 +62,14 @@ void HLSOutput::onSample(GstSample *sample)
                 std::shared_ptr<HLSPartialSegment> recentPartialSegment = recentSegment->partialSegments.back();
                 recentPartialSegment->duration = buffer->pts - recentPartialSegment->pts;
                 recentPartialSegment->finished = true;
+                if (auto delegate = priv->delegate.lock())
+                {
+                    delegate->onPartialSegment();
+                }
+            }
+            if (auto delegate = priv->delegate.lock())
+            {
+                delegate->onSegment();
             }
         }
         segment = std::make_shared<HLSSegment>();
@@ -88,6 +101,10 @@ void HLSOutput::onSample(GstSample *sample)
         {
             recentPartialSegment->duration = buffer->pts - recentPartialSegment->pts;
             recentPartialSegment->finished = true;
+            if (auto delegate = priv->delegate.lock())
+            {
+                delegate->onPartialSegment();
+            }
         }
         partialSegment = std::make_shared<HLSPartialSegment>();
         partialSegment->pts = buffer->pts;
@@ -192,4 +209,22 @@ std::string HLSOutput::getPlaylist(bool lowLatency) const
         }
     }
     return ss.str();
+}
+
+bool HLSOutput::segmentReady(int msn) const
+{
+    return (msn + 1) < priv->mediaSequenceNumber;
+}
+
+bool HLSOutput::partialSegmentReady(int msn, int partIndex) const
+{
+    if (priv->segments.size())
+    {
+        return (msn < priv->mediaSequenceNumber) &&
+            ((partIndex + 1) < priv->segments.back()->number);
+    }
+    else
+    {
+        return false;
+    }
 }
