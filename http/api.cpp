@@ -188,17 +188,27 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
     {
         HTTPAPI::Private *priv = reinterpret_cast<HTTPAPI::Private *>(user_data);
         std::shared_ptr<HLSOutput> hlsOutput = priv->hlsOutput;
-        std::string playlist = hlsOutput->getPlaylist(true);
+
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
         soup_message_headers_append(msg->response_headers, "Content-Encoding", "gzip");
+
         const gchar *_HLS_msn = NULL;
         const gchar *_HLS_part = NULL;
         if (query)
         {
             _HLS_msn = (const gchar *)g_hash_table_lookup(query, "_HLS_msn");
             _HLS_part = (const gchar *)g_hash_table_lookup(query, "_HLS_part");
+            if (_HLS_msn)
+            {
+                std::cerr << "_HLS_msn=" << _HLS_msn;
+            }
+            if (_HLS_part)
+            {
+                std::cerr << "_HLS_part=" << _HLS_part;
+            }
+            std::cerr << std::endl;
             int requestedMediaSequenceNumber = -1;
             int requestedPartIndex = -1;
             bool playlistReady = true;
@@ -228,14 +238,6 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             else
             {
                 std::cerr << "Blocking playlist response...";
-                if (_HLS_msn)
-                {
-                    std::cerr << "_HLS_msn=" << _HLS_msn;
-                }
-                if (_HLS_part)
-                {
-                    std::cerr << "_HLS_part=" << _HLS_part;
-                }
                 std::cerr << std::endl;
                 soup_server_pause_message(server, msg);
                 auto playlistRequest = std::make_shared<PlaylistRequest>();
@@ -247,6 +249,8 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
                 return;
             }
         }
+        
+        std::string playlist = hlsOutput->getPlaylist(true);
         
         message_body_append_compressed_text(msg->response_body, playlist);
 
