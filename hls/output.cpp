@@ -42,6 +42,7 @@ void HLSOutput::onSample(GstSample *sample)
     GstBuffer *buffer = gst_sample_get_buffer(sample);
     GstClockTime pts = priv->recentPTS;
     bool sampleContainsIDR = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
+    // std::cerr << (sampleContainsIDR ? "I" : ".");
     if (buffer->pts != GST_CLOCK_TIME_NONE)
     {
         pts = buffer->pts;
@@ -70,10 +71,6 @@ void HLSOutput::onSample(GstSample *sample)
                 std::shared_ptr<HLSPartialSegment> recentPartialSegment = recentSegment->partialSegments.back();
                 recentPartialSegment->duration = pts - recentPartialSegment->pts;
                 recentPartialSegment->finished = true;
-                if (auto delegate = priv->delegate.lock())
-                {
-                    delegate->onPartialSegment();
-                }
             }
             if (auto delegate = priv->delegate.lock())
             {
@@ -105,6 +102,11 @@ void HLSOutput::onSample(GstSample *sample)
     }
     if (!partialSegment)
     {
+        partialSegment = std::make_shared<HLSPartialSegment>();
+        partialSegment->pts = pts;
+        partialSegment->number = segment->lastPartialSegmentNumber++;
+        std::cerr << "*";
+        segment->partialSegments.push_back(partialSegment);
         if (recentPartialSegment)
         {
             recentPartialSegment->duration = pts - recentPartialSegment->pts;
@@ -114,14 +116,11 @@ void HLSOutput::onSample(GstSample *sample)
                 delegate->onPartialSegment();
             }
         }
-        partialSegment = std::make_shared<HLSPartialSegment>();
-        partialSegment->pts = pts;
-        partialSegment->number = segment->lastPartialSegmentNumber++;
-        if (sampleContainsIDR)
-        {
-            partialSegment->independent = true;
-        }
-        segment->partialSegments.push_back(partialSegment);
+    }
+
+    if (sampleContainsIDR)
+    {
+        partialSegment->independent = true;
     }
 
     GstMapInfo mapInfo;
@@ -184,6 +183,8 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
     }
     bool msnReported = false;
     bool dateTimeReported = false;
+    bool partPresent = false;
+    bool preloadPresent = false;
     for (const auto& segment: priv->segments)
     {
         if (!msnReported)
@@ -209,10 +210,12 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
                     ss << ",INDEPENDENT=YES";
                 }
                 ss << std::endl;
+                partPresent = true;
             }
             else
             {
                 ss << "#EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"partial/" << segment->number << "." << partialSegment->number << ".ts\"" << std::endl;
+                preloadPresent = true;
             }
         }
         if (segment->finished)
@@ -220,6 +223,10 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
             ss << "#EXTINF:" << segment->duration * 0.000000001 << "," << std::endl;
             ss << "segments/" << segment->number << ".ts" << std::endl;
         }
+    }
+    if (partPresent && !preloadPresent)
+    {
+        std::cerr << ss.str() << std::endl;
     }
     return ss.str();
 }
