@@ -122,14 +122,22 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         if (segment)
         {
-            soup_message_headers_append(msg->response_headers, "Content-Type", "video/mp2t");
-            soup_message_set_status(msg, SOUP_STATUS_OK);
-            for (const auto &b: segment->data)
+            if (segment->finished)
             {
-                soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
+                soup_message_headers_append(msg->response_headers, "Content-Type", "video/mp2t");
+                soup_message_set_status(msg, SOUP_STATUS_OK);
+                for (const auto &b: segment->data)
+                {
+                    soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
+                }
+                std::cerr << "" << path << ", sent " << segment->data.size() << " chunks" << std::endl;
+                soup_message_body_complete(msg->response_body);
             }
-            std::cerr << "" << path << ", sent " << segment->data.size() << " chunks" << std::endl;
-            soup_message_body_complete(msg->response_body);
+            else
+            {
+                std::cerr << "" << path << ", segment not finished" << std::endl;
+                set_error_message(msg, SOUP_STATUS_BAD_REQUEST);
+            }
         }
         else
         {
@@ -151,14 +159,22 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             std::shared_ptr<HLSPartialSegment> partialSegment = segment->getPartialSegment(partialSegmentNumber);
             if (partialSegment)
             {
-                soup_message_headers_append(msg->response_headers, "Content-Type", "video/mp2t");
-                soup_message_set_status(msg, SOUP_STATUS_OK);
-                for (const auto &b: partialSegment->data)
+                if (partialSegment->finished)
                 {
-                    soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
+                    soup_message_headers_append(msg->response_headers, "Content-Type", "video/mp2t");
+                    soup_message_set_status(msg, SOUP_STATUS_OK);
+                    for (const auto &b: partialSegment->data)
+                    {
+                        soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
+                    }
+                    std::cerr << "" << path << ", sent " << partialSegment->data.size() << " chunks" << std::endl;
+                    soup_message_body_complete(msg->response_body);
                 }
-                std::cerr << "" << path << ", sent " << partialSegment->data.size() << " chunks" << std::endl;
-                soup_message_body_complete(msg->response_body);
+                else
+                {
+                    std::cerr << "" << path << ", partial segment not finished" << std::endl;
+                    set_error_message(msg, SOUP_STATUS_BAD_REQUEST);
+                }
             }
             else
             {
@@ -218,7 +234,6 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
                 std::cerr << "_HLS_skip=" << _HLS_skip;
             }
             skip = (_HLS_skip != NULL);
-            std::cerr << std::endl;
             int requestedMediaSequenceNumber = -1;
             int requestedPartIndex = -1;
             bool playlistReady = true;
@@ -227,6 +242,7 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
                 requestedMediaSequenceNumber = std::atoi(_HLS_msn);
                 if (hlsOutput->msnWrong(requestedMediaSequenceNumber))
                 {
+                    std::cerr << ": too greedy" << std::endl;
                     soup_message_set_status(msg, SOUP_STATUS_BAD_REQUEST);
                     soup_message_body_complete(msg->response_body);
                     return;
@@ -243,11 +259,11 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             }
             if (playlistReady)
             {
-                std::cerr << "Playlist ready" << std::endl;
+                std::cerr << ": playlist ready" << std::endl;
             }
             else
             {
-                std::cerr << "Blocking playlist response...";
+                std::cerr << ": blocking playlist response...";
                 std::cerr << std::endl;
                 soup_server_pause_message(server, msg);
                 auto playlistRequest = std::make_shared<PlaylistRequest>();
