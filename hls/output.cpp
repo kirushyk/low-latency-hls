@@ -203,7 +203,7 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
             if (partialSegment->finished)
             {
                 ss << "#EXT-X-PART:DURATION=" << partialSegment->duration * 0.000000001;
-                ss << ",URI=\"/api/partial/" << segment->number << "." << partialSegment->number << ".ts\"";
+                ss << ",URI=\"partial/" << segment->number << "." << partialSegment->number << ".ts\"";
                 if (partialSegment->independent)
                 {
                     ss << ",INDEPENDENT=YES";
@@ -212,13 +212,13 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
             }
             else
             {
-                ss << "#EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"/api/partial/" << segment->number << "." << partialSegment->number << ".ts\"" << std::endl;
+                ss << "#EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"partial/" << segment->number << "." << partialSegment->number << ".ts\"" << std::endl;
             }
         }
         if (segment->finished)
         {
             ss << "#EXTINF:" << segment->duration * 0.000000001 << "," << std::endl;
-            ss << "/api/segments/" << segment->number << ".ts" << std::endl;
+            ss << "segments/" << segment->number << ".ts" << std::endl;
         }
     }
     return ss.str();
