@@ -1,8 +1,8 @@
 #pragma once
 #define SEGMENTS_COUNT 7
 #define SEGMENT_DURATION 6
-#define PARTIAL_SEGMENT_MAX_DURATION 0.3
-#define PARTIAL_SEGMENT_MIN_DURATION 0.2
+#define PARTIAL_SEGMENT_MAX_DURATION 0.3334
+#define PARTIAL_SEGMENT_MIN_DURATION 0.3
 #include <cstdint>
 #include <sstream>
 #include <memory>
