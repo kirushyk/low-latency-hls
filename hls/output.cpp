@@ -44,7 +44,7 @@ void HLSOutput::onSample(GstSample *sample)
     if (priv->segments.size())
     {
         recentSegment = priv->segments.back();
-        bool targetDurationSoon = (buffer->pts - recentSegment->pts) > ((SEGMENT_DURATION - 2) * GST_SECOND);
+        bool targetDurationSoon = (buffer->pts - recentSegment->pts) > ((SEGMENT_DURATION - PARTIAL_SEGMENT_MAX_DURATION) * GST_SECOND);
         if (!(targetDurationSoon && sampleContainsIDR))
         {
             segment = recentSegment;
@@ -155,14 +155,7 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
         ss << "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3;
         if (priv->segments.size() > 4)
         {
-            GstClockTime skipDuration = 0;
-            for (const auto &segment: priv->segments)
-            {
-                if (priv->mediaSequenceNumber - segment->number <= 2)
-                    break;
-                skipDuration += segment->duration;
-            }
-            ss << ",CAN-SKIP-UNTIL=" << skipDuration * 0.000000001;
+            ss << ",CAN-SKIP-UNTIL=" << 3 * SEGMENT_DURATION;
         }
         ss << std::endl;
         bool partInfReported = false;
