@@ -53,7 +53,7 @@ void HLSOutput::onSample(GstSample *sample)
     if (priv->segments.size())
     {
         recentSegment = priv->segments.back();
-        bool targetDurationSoon = (pts - recentSegment->pts) > ((SEGMENT_DURATION - PARTIAL_SEGMENT_MAX_DURATION) * GST_SECOND);
+        bool targetDurationSoon = (pts - recentSegment->pts) > ((SEGMENT_DURATION) * GST_SECOND);
         if (!(targetDurationSoon && sampleContainsIDR))
         {
             segment = recentSegment;
@@ -71,6 +71,10 @@ void HLSOutput::onSample(GstSample *sample)
                 std::shared_ptr<HLSPartialSegment> recentPartialSegment = recentSegment->partialSegments.back();
                 recentPartialSegment->duration = pts - recentPartialSegment->pts;
                 recentPartialSegment->finished = true;
+                if (auto delegate = priv->delegate.lock())
+                {
+                    delegate->onPartialSegment();
+                }
             }
             if (auto delegate = priv->delegate.lock())
             {
