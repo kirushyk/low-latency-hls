@@ -88,21 +88,15 @@ RTSPInput::RTSPInput(const char *url, std::shared_ptr<Delegate> delegate):
     g_signal_connect(rtspsrc, "pad-added", G_CALLBACK(rtspsrc_pad_added), rtph264depay);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
     g_object_set(h264parse, "config-interval", -1, NULL);
-    GstElement *h264tee = gst_element_factory_make("tee", NULL);
-    GstElement *tsqueue = gst_element_factory_make("queue", NULL);
     GstElement *tsmux = gst_element_factory_make("mpegtsmux", NULL);
     GstElement *tsparse = gst_element_factory_make("tsparse", NULL);
     g_object_set(tsparse, "set-timestamps", TRUE, "split-on-rai", TRUE, NULL);
-    
     GstElement *tssink = gst_element_factory_make("appsink", NULL);
     g_object_set(tssink, "emit-signals", TRUE, "sync", FALSE, NULL);
     g_signal_connect(tssink, "new-sample", G_CALLBACK(tssink_new_sample), priv.get());
 
-    gst_bin_add_many(GST_BIN(priv->pipeline), rtspsrc, rtph264depay, h264parse, h264tee, NULL);
-    gst_element_link_many(rtph264depay, h264parse, h264tee, NULL);
-    gst_bin_add_many(GST_BIN(priv->pipeline), tsqueue, tsmux, tsparse, tssink, NULL);
-    gst_pad_link(gst_element_get_request_pad(h264tee, "src_%u"), gst_element_get_static_pad(tsqueue, "sink"));
-    gst_element_link_many(tsqueue, tsmux, tsparse, tssink, NULL);
+    gst_bin_add_many(GST_BIN(priv->pipeline), rtspsrc, rtph264depay, h264parse, tsmux, tsparse, tssink, NULL);
+    gst_element_link_many(rtph264depay, h264parse, tsmux, tsparse, tssink, NULL);
     
     gst_element_set_state(priv->pipeline, GST_STATE_PLAYING);
     
