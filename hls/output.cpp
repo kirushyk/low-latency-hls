@@ -191,6 +191,13 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
             ss << "#EXT-X-MEDIA-SEQUENCE:" << segment->number << std::endl;
             msnReported = true;
         }
+        if (!dateTimeReported)
+        {
+            gchar *formattedDateTime = g_date_time_format_iso8601(segment->dateTime);
+            ss << "#EXT-X-PROGRAM-DATE-TIME:" << formattedDateTime << std::endl;
+            g_free(formattedDateTime);
+            //dateTimeReported = true;
+        }
         if (lowLatency) for (const auto &partialSegment: segment->partialSegments)
         {
             if (partialSegment->finished)
@@ -210,13 +217,6 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
         }
         if (segment->finished)
         {
-            if (!dateTimeReported)
-            {
-                gchar *formattedDateTime = g_date_time_format_iso8601(segment->dateTime);
-                ss << "#EXT-X-PROGRAM-DATE-TIME:" << formattedDateTime << std::endl;
-                g_free(formattedDateTime);
-                dateTimeReported = true;
-            }
             ss << "#EXTINF:" << segment->duration * 0.000000001 << "," << std::endl;
             ss << "/api/segments/" << segment->number << ".ts" << std::endl;
         }
@@ -238,7 +238,7 @@ bool HLSOutput::partialSegmentReady(int msn, int partIndex) const
 {
     if (priv->segments.size())
     {
-        return segmentReady(msn + 1) ||
+        return segmentReady(msn) ||
             ((msn < priv->mediaSequenceNumber) && ((partIndex + 1) < priv->segments.back()->number));
     }
     return false;
