@@ -87,7 +87,7 @@ RTSPInput::RTSPInput(const char *url, std::shared_ptr<Delegate> delegate):
     GstElement *rtph264depay = gst_element_factory_make("rtph264depay", NULL);
     g_signal_connect(rtspsrc, "pad-added", G_CALLBACK(rtspsrc_pad_added), rtph264depay);
     GstElement *h264parse = gst_element_factory_make("h264parse", NULL);
-    g_object_set(h264parse, "config-interval", -1, "update-timecode", TRUE, NULL);
+    g_object_set(h264parse, "config-interval", 1, "update-timecode", TRUE, NULL);
     GstElement *tsmux = gst_element_factory_make("mpegtsmux", NULL);
     g_object_set(tsmux, "start-time-selection", 0, NULL);
     GstElement *tssink = gst_element_factory_make("appsink", NULL);
