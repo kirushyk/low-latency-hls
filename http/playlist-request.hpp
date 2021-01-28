@@ -1,11 +1,7 @@
 #pragma once
-#include <libsoup/soup.h>
+#include "preload-request.hpp"
 
-struct PlaylistRequest
+struct PlaylistRequest: PreloadRequest
 {
-    SoupMessage *msg;
-    int mediaSequenceNumber;
-    int partIndex;
     bool skip;
-    bool processed;
 };

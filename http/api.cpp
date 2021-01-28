@@ -16,11 +16,13 @@ struct HTTPAPI::Private: public HLSOutput::Delegate
     virtual void onPartialSegment() override final;
     virtual void onSegment() override final;
     std::list<std::shared_ptr<PlaylistRequest>> playlistRequests;
+    std::list<std::shared_ptr<PreloadRequest>> partialSegmentRequests;
 };
 
 void HTTPAPI::Private::removeProcessedRequests()
 {
     playlistRequests.remove_if([](std::shared_ptr<PlaylistRequest> &request) { return request->processed; });
+    partialSegmentRequests.remove_if([](std::shared_ptr<PreloadRequest> &request) { return request->processed; });
 }
 
 static void message_body_append_compressed_text(SoupMessageBody *message_body, std::string text)
@@ -66,6 +68,31 @@ void HTTPAPI::Private::onPartialSegment()
 
                 request->processed = true;
             }
+        }
+    }
+    for (auto &request: partialSegmentRequests)
+    {
+        if (hlsOutput->partialSegmentReady(request->mediaSequenceNumber, request->partIndex))
+        {
+            std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(request->mediaSequenceNumber);
+            std::shared_ptr<HLSPartialSegment> partialSegment = segment->getPartialSegment(request->partIndex);
+
+            for (const auto &b: segment->data)
+            {
+                soup_message_body_append(request->msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
+            }
+            std::cerr << "" << request->mediaSequenceNumber << "." <<
+                request->partIndex << ", sent " << segment->data.size() << " chunks (delayed)" << std::endl;
+
+            soup_message_set_status(request->msg, SOUP_STATUS_OK);
+            soup_message_body_complete(request->msg->response_body);
+
+            soup_server_unpause_message(http_server, request->msg);
+
+            std::cerr << "We have partial segment " << request->mediaSequenceNumber << "." <<
+                request->partIndex << ", unpausing blocked partial segment request" << std::endl;
+
+            request->processed = true;
         }
     }
     removeProcessedRequests();
@@ -145,12 +172,13 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             set_error_message(msg, SOUP_STATUS_NOT_FOUND);
         }
     }, priv.get(), NULL);
-    soup_server_add_handler(priv->http_server, "/api/partial/", [](SoupServer *, SoupMessage *msg, const char *path, GHashTable *, SoupClientContext *, gpointer user_data)
+    soup_server_add_handler(priv->http_server, "/api/partial/", [](SoupServer *server, SoupMessage *msg, const char *path, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         int segmentNumber = 0;
         int partialSegmentNumber = 0;
         sscanf(path + 13, "%d.%d.ts", &segmentNumber, &partialSegmentNumber);
-        std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI::Private *>(user_data)->hlsOutput;
+        HTTPAPI::Private *priv = reinterpret_cast<HTTPAPI::Private *>(user_data);
+        std::shared_ptr<HLSOutput> hlsOutput = priv->hlsOutput;
         std::shared_ptr<HLSSegment> segment = hlsOutput->getSegment(segmentNumber);
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
@@ -172,8 +200,15 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
                 }
                 else
                 {
-                    std::cerr << "" << path << ", partial segment not finished" << std::endl;
-                    set_error_message(msg, SOUP_STATUS_BAD_REQUEST);
+                    std::cerr << "" << path << ", blocking partial segment request response..." << std::endl;
+                    soup_server_pause_message(server, msg);
+                    auto partialSegmentRequest = std::make_shared<PreloadRequest>();
+                    partialSegmentRequest->msg = msg;
+                    partialSegmentRequest->mediaSequenceNumber = segmentNumber;
+                    partialSegmentRequest->partIndex = partialSegmentNumber;
+                    partialSegmentRequest->processed = false;
+                    priv->partialSegmentRequests.push_back(partialSegmentRequest);
+                    return;
                 }
             }
             else
