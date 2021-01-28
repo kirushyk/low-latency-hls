@@ -53,7 +53,7 @@ void HTTPAPI::Private::onPartialSegment()
         {
             if (hlsOutput->partialSegmentReady(request->mediaSequenceNumber, request->partIndex))
             {
-                std::string playlist = hlsOutput->getPlaylist(true);
+                std::string playlist = hlsOutput->getPlaylist(true, request->skip);
                 message_body_append_compressed_text(request->msg->response_body, playlist);
 
                 soup_message_set_status(request->msg, SOUP_STATUS_OK);
@@ -79,7 +79,7 @@ void HTTPAPI::Private::onSegment()
         {
             if (hlsOutput->segmentReady(request->mediaSequenceNumber))
             {
-                std::string playlist = hlsOutput->getPlaylist(true);
+                std::string playlist = hlsOutput->getPlaylist(true, request->skip);
                 message_body_append_compressed_text(request->msg->response_body, playlist);
 
                 soup_message_set_status(request->msg, SOUP_STATUS_OK);
@@ -128,10 +128,12 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             {
                 soup_message_body_append(msg->response_body, SOUP_MEMORY_COPY, (gchar *)b.data(), b.size());
             }
+            std::cerr << "" << path << ", sent " << segment->data.size() << " chunks" << std::endl;
             soup_message_body_complete(msg->response_body);
         }
         else
         {
+            std::cerr << "" << path << ", segment not found" << std::endl;
             set_error_message(msg, SOUP_STATUS_NOT_FOUND);
         }
     }, priv.get(), NULL);
@@ -173,7 +175,7 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
     soup_server_add_handler(priv->http_server, "/api/plain.m3u8", [](SoupServer *, SoupMessage *msg, const char *, GHashTable *, SoupClientContext *, gpointer user_data)
     {
         std::shared_ptr<HLSOutput> hlsOutput = reinterpret_cast<HTTPAPI::Private *>(user_data)->hlsOutput;
-        std::string playlist = hlsOutput->getPlaylist(false);
+        std::string playlist = hlsOutput->getPlaylist(false, false);
         soup_message_headers_append(msg->response_headers, "Cache-Control", "no-cache, no-store, must-revalidate");
         soup_message_headers_append(msg->response_headers, "Pragma", "no-cache");
         soup_message_headers_append(msg->response_headers, "Content-Type", "application/vnd.apple.mpegURL");
@@ -196,10 +198,13 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
 
         const gchar *_HLS_msn = NULL;
         const gchar *_HLS_part = NULL;
+        const gchar *_HLS_skip = NULL;
+        bool skip = false;
         if (query)
         {
             _HLS_msn = (const gchar *)g_hash_table_lookup(query, "_HLS_msn");
             _HLS_part = (const gchar *)g_hash_table_lookup(query, "_HLS_part");
+            _HLS_skip = (const gchar *)g_hash_table_lookup(query, "_HLS_skip");
             if (_HLS_msn)
             {
                 std::cerr << "_HLS_msn=" << _HLS_msn;
@@ -208,6 +213,11 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
             {
                 std::cerr << "_HLS_part=" << _HLS_part;
             }
+            if (_HLS_skip)
+            {
+                std::cerr << "_HLS_skip=" << _HLS_skip;
+            }
+            skip = (_HLS_skip != NULL);
             std::cerr << std::endl;
             int requestedMediaSequenceNumber = -1;
             int requestedPartIndex = -1;
@@ -244,13 +254,14 @@ HTTPAPI::HTTPAPI(const int port, std::shared_ptr<HLSOutput> hlsOutput):
                 playlistRequest->msg = msg;
                 playlistRequest->mediaSequenceNumber = requestedMediaSequenceNumber;
                 playlistRequest->partIndex = requestedPartIndex;
+                playlistRequest->skip = skip;
                 playlistRequest->processed = false;
                 priv->playlistRequests.push_back(playlistRequest);
                 return;
             }
         }
-        
-        std::string playlist = hlsOutput->getPlaylist(true);
+
+        std::string playlist = hlsOutput->getPlaylist(true, skip);
         
         message_body_append_compressed_text(msg->response_body, playlist);
 

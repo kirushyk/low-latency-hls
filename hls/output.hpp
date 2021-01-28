@@ -25,7 +25,7 @@ public:
     void setDelegate(std::shared_ptr<Delegate>);
     virtual void onSample(GstSample *sample) override final;
     std::shared_ptr<HLSSegment> getSegment(int number) const;
-    std::string getPlaylist(bool lowLatency) const;
+    std::string getPlaylist(bool lowLatency, bool skip) const;
     bool msnWrong(int msn) const;
     bool segmentReady(int msn) const;
     bool partialSegmentReady(int msn, int partIndex) const;
