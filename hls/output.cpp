@@ -9,6 +9,7 @@ struct HLSOutput::Private
     int lastIndex, mediaSequenceNumber;
     std::list<std::shared_ptr<HLSSegment>> segments;
     std::weak_ptr<Delegate> delegate;
+    GstClockTime recentPTS;
 };
 
 HLSOutput::Delegate::~Delegate()
@@ -21,6 +22,7 @@ HLSOutput::HLSOutput():
 {
     priv->lastIndex = 0;
     priv->mediaSequenceNumber = 0;
+    priv->recentPTS = GST_CLOCK_TIME_NONE;
 }
 
 HLSOutput::~HLSOutput()
@@ -38,13 +40,19 @@ void HLSOutput::onSample(GstSample *sample)
     std::shared_ptr<HLSSegment> segment;
     
     GstBuffer *buffer = gst_sample_get_buffer(sample);
+    GstClockTime pts = priv->recentPTS;
     bool sampleContainsIDR = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
+    if (buffer->pts != GST_CLOCK_TIME_NONE)
+    {
+        pts = buffer->pts;
+        priv->recentPTS = pts;
+    }
 
     std::shared_ptr<HLSSegment> recentSegment;
     if (priv->segments.size())
     {
         recentSegment = priv->segments.back();
-        bool targetDurationSoon = (buffer->pts - recentSegment->pts) > ((SEGMENT_DURATION - PARTIAL_SEGMENT_MAX_DURATION) * GST_SECOND);
+        bool targetDurationSoon = (pts - recentSegment->pts) > ((SEGMENT_DURATION - PARTIAL_SEGMENT_MAX_DURATION) * GST_SECOND);
         if (!(targetDurationSoon && sampleContainsIDR))
         {
             segment = recentSegment;
@@ -55,12 +63,12 @@ void HLSOutput::onSample(GstSample *sample)
     {
         if (recentSegment)
         {
-            recentSegment->duration = buffer->pts - recentSegment->pts;
+            recentSegment->duration = pts - recentSegment->pts;
             recentSegment->finished = true;
             if (recentSegment->partialSegments.size())
             {
                 std::shared_ptr<HLSPartialSegment> recentPartialSegment = recentSegment->partialSegments.back();
-                recentPartialSegment->duration = buffer->pts - recentPartialSegment->pts;
+                recentPartialSegment->duration = pts - recentPartialSegment->pts;
                 recentPartialSegment->finished = true;
                 if (auto delegate = priv->delegate.lock())
                 {
@@ -73,7 +81,7 @@ void HLSOutput::onSample(GstSample *sample)
             }
         }
         segment = std::make_shared<HLSSegment>();
-        segment->pts = buffer->pts;
+        segment->pts = pts;
         segment->number = priv->mediaSequenceNumber++;
         priv->segments.push_back(segment);
         if (priv->segments.size() > SEGMENTS_COUNT)
@@ -90,7 +98,7 @@ void HLSOutput::onSample(GstSample *sample)
     }
     if (recentPartialSegment)
     {
-        if ((buffer->pts - recentPartialSegment->pts) < PARTIAL_SEGMENT_MIN_DURATION * GST_SECOND)
+        if ((pts - recentPartialSegment->pts) < PARTIAL_SEGMENT_MIN_DURATION * GST_SECOND)
         {
             partialSegment = recentPartialSegment;
         }
@@ -99,7 +107,7 @@ void HLSOutput::onSample(GstSample *sample)
     {
         if (recentPartialSegment)
         {
-            recentPartialSegment->duration = buffer->pts - recentPartialSegment->pts;
+            recentPartialSegment->duration = pts - recentPartialSegment->pts;
             recentPartialSegment->finished = true;
             if (auto delegate = priv->delegate.lock())
             {
@@ -107,11 +115,11 @@ void HLSOutput::onSample(GstSample *sample)
             }
         }
         partialSegment = std::make_shared<HLSPartialSegment>();
-        partialSegment->pts = buffer->pts;
+        partialSegment->pts = pts;
         partialSegment->number = segment->lastPartialSegmentNumber++;
         if (sampleContainsIDR)
         {
-            // partialSegment->independent = true;
+            partialSegment->independent = true;
         }
         segment->partialSegments.push_back(partialSegment);
     }
@@ -125,7 +133,7 @@ void HLSOutput::onSample(GstSample *sample)
 
     for (auto &oldSegment: priv->segments)
     {
-        if ((buffer->pts - oldSegment->pts) > 3 * SEGMENT_DURATION * GST_SECOND)
+        if ((pts - oldSegment->pts) > 3 * SEGMENT_DURATION * GST_SECOND)
         {
             oldSegment->partialSegments.clear();
         }
@@ -153,10 +161,10 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
     if (lowLatency)
     {
         ss << "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK=" << PARTIAL_SEGMENT_MAX_DURATION * 3;
-        if (priv->segments.size() > 4)
-        {
-            ss << ",CAN-SKIP-UNTIL=" << 3 * SEGMENT_DURATION;
-        }
+        // if (priv->segments.size() > 4)
+        // {
+        //     ss << ",CAN-SKIP-UNTIL=" << 6 * SEGMENT_DURATION;
+        // }
         ss << std::endl;
         bool partInfReported = false;
         for (const auto& segment: priv->segments)
