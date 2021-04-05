@@ -198,7 +198,7 @@ std::string HLSOutput::getPlaylist(bool lowLatency, bool skip) const
         }
         if (!dateTimeReported)
         {
-            gchar *formattedDateTime = g_date_time_format_iso8601(segment->dateTime);
+            gchar *formattedDateTime = g_date_time_format(segment->dateTime, "%Y-%m-%dT%H:%M:%S.%fZ");
             ss << "#EXT-X-PROGRAM-DATE-TIME:" << formattedDateTime << std::endl;
             g_free(formattedDateTime);
             //dateTimeReported = true;
